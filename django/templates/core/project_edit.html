@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ project.name }} — Interceptor{% endblock %}
+{% block content %}
+<h2>Edit Project</h2>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="panel">
+        <h3>Program info</h3>
+        <p><input type="text" name="name" value="{{ project.name }}" required style="width: 100%; max-width: 400px;"></p>
+        <p>
+            <label class="muted">Description</label><br>
+            <textarea name="description" rows="3">{{ project.description }}</textarea>
+        </p>
+    </div>
+
+    <div class="panel">
+        <h3>Rules</h3>
+        <textarea name="rules" rows="4">{{ project.rules }}</textarea>
+    </div>
+
+    <button type="submit">Save</button>
+    <a href="{% url 'core:project_list' %}"><button type="button">Cancel</button></a>
+</form>
+
+<div class="panel">
+    <h3>Scope &amp; Headers</h3>
+    {% if project.is_active %}
+    <p class="muted">This is the active project — <a href="{% url 'core:scope_list' %}">edit its scope</a> or <a href="{% url 'core:header_list' %}">edit its headers</a>.</p>
+    {% else %}
+    <p class="muted">Scope and Headers pages always operate on the active project, and this isn't it. Activate it first to edit its scope/headers.</p>
+    <form method="post" action="{% url 'core:project_activate' project.pk %}">
+        {% csrf_token %}
+        <button type="submit">Activate '{{ project.name }}'</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

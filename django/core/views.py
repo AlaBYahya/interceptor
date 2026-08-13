@@ -76,6 +76,29 @@ def project_create(request):
 
 
 @login_required
+def project_edit(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        if not name:
+            messages.error(request, "Project name is required.")
+            return redirect("core:project_edit", pk=project.pk)
+        if Project.objects.exclude(pk=project.pk).filter(name=name).exists():
+            messages.error(request, f"A project named '{name}' already exists.")
+            return redirect("core:project_edit", pk=project.pk)
+
+        project.name = name
+        project.description = request.POST.get("description", "").strip()
+        project.rules = request.POST.get("rules", "").strip()
+        project.save(update_fields=["name", "description", "rules"])
+        messages.success(request, f"Saved '{project.name}'.")
+        return redirect("core:project_list")
+
+    return render(request, "core/project_edit.html", {"project": project})
+
+
+@login_required
 def project_activate(request, pk):
     project = get_object_or_404(Project, pk=pk)
     project.is_active = True

@@ -33,6 +33,7 @@
                     <button type="submit">Activate</button>
                 </form>
                 {% endif %}
+                <a href="{% url 'core:project_edit' project.pk %}"><button type="button">Edit</button></a>
                 <a href="{% url 'core:project_export' project.pk %}"><button type="button">Export</button></a>
                 <form class="inline" method="post" action="{% url 'core:project_delete' project.pk %}" onsubmit="return confirm('Delete project \'{{ project.name }}\' and ALL its data (traffic, findings, vulnerabilities, everything)? This cannot be undone.');">
                     {% csrf_token %}
