@@ -24,11 +24,11 @@
 </form>
 
 <div class="panel">
-    <h3>Scope &amp; Headers</h3>
+    <h3>Scope, Headers &amp; Notes</h3>
     {% if project.is_active %}
-    <p class="muted">This is the active project — <a href="{% url 'core:scope_list' %}">edit its scope</a> or <a href="{% url 'core:header_list' %}">edit its headers</a>.</p>
+    <p class="muted">This is the active project — <a href="{% url 'core:scope_list' %}">edit its scope</a>, <a href="{% url 'core:header_list' %}">edit its headers</a>, or <a href="{% url 'core:notes_list' %}">view its notes</a>.</p>
     {% else %}
-    <p class="muted">Scope and Headers pages always operate on the active project, and this isn't it. Activate it first to edit its scope/headers.</p>
+    <p class="muted">Scope, Headers, and Notes pages always operate on the active project, and this isn't it. Activate it first.</p>
     <form method="post" action="{% url 'core:project_activate' project.pk %}">
         {% csrf_token %}
         <button type="submit">Activate '{{ project.name }}'</button>

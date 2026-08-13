@@ -15,4 +15,7 @@ urlpatterns = [
     path("scope/capture-mode/", views.set_capture_mode, name="set_capture_mode"),
     path("headers/", views.header_list, name="header_list"),
     path("headers/<int:pk>/delete/", views.header_delete, name="header_delete"),
+    path("notes/", views.notes_list, name="notes_list"),
+    path("notes/<int:pk>/edit/", views.note_edit, name="note_edit"),
+    path("notes/<int:pk>/delete/", views.note_delete, name="note_delete"),
 ]

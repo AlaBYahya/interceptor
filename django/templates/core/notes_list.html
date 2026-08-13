@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Notes — Interceptor{% endblock %}
+{% block content %}
+<h2>Notes — {{ project.name }}</h2>
+<p class="muted">A running log for this project — what you tried, found, or still need to check. Newest first.</p>
+
+<form method="post" class="panel">
+    {% csrf_token %}
+    <textarea name="text" placeholder="New note..." rows="3" required></textarea>
+    <p><button type="submit">Add note</button></p>
+</form>
+
+{% for note in project.notes.all %}
+<form method="post" action="{% url 'core:note_edit' note.pk %}" class="panel">
+    {% csrf_token %}
+    <p class="muted">
+        {{ note.created_at|date:"Y-m-d H:i" }}
+        {% if note.updated_at != note.created_at %}(edited {{ note.updated_at|date:"Y-m-d H:i" }}){% endif %}
+    </p>
+    <textarea name="text" rows="3">{{ note.text }}</textarea>
+    <p>
+        <button type="submit">Save</button>
+        <button type="submit" formaction="{% url 'core:note_delete' note.pk %}" onclick="return confirm('Delete this note?');">Delete</button>
+    </p>
+</form>
+{% empty %}
+<p class="muted">No notes yet.</p>
+{% endfor %}
+{% endblock %}

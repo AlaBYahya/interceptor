@@ -18,7 +18,7 @@ from scanner.models import ActiveScanJob, Finding, Technology, Vulnerability
 from toolbox.models import ScanJob
 from traffic.models import CrawlJob, DiscoveredEndpoint, Flow
 
-from .models import CustomHeader, Project, ScopeEntry
+from .models import CustomHeader, Project, ProjectNote, ScopeEntry
 
 EXPORT_VERSION = 1
 
@@ -50,6 +50,10 @@ def export_project(project):
                 "apply_to_tool_traffic": h.apply_to_tool_traffic,
             }
             for h in project.custom_headers.all()
+        ],
+        "notes": [
+            {"text": n.text, "created_at": _dt(n.created_at), "updated_at": _dt(n.updated_at)}
+            for n in project.notes.all()
         ],
         "flows": [
             {
@@ -213,6 +217,19 @@ def import_project(data):
             apply_to_proxy_traffic=h.get("apply_to_proxy_traffic", True),
             apply_to_tool_traffic=h.get("apply_to_tool_traffic", True),
         )
+
+    for n in data.get("notes", []):
+        note = ProjectNote.objects.create(project=project, text=n["text"])
+        # created_at/updated_at are auto_now(_add), so a normal .save() would
+        # always overwrite them with "now" — go through .update() instead to
+        # actually preserve the original timestamps from the export.
+        timestamps = {}
+        if n.get("created_at"):
+            timestamps["created_at"] = parse_datetime(n["created_at"])
+        if n.get("updated_at"):
+            timestamps["updated_at"] = parse_datetime(n["updated_at"])
+        if timestamps:
+            ProjectNote.objects.filter(pk=note.pk).update(**timestamps)
 
     flow_id_map = {}
     for f in data.get("flows", []):

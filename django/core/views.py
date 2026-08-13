@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from .models import CustomHeader, Project, ScopeEntry
+from .models import CustomHeader, Project, ProjectNote, ScopeEntry
 from .project_transfer import export_project, import_project
 
 
@@ -216,6 +216,41 @@ def header_delete(request, pk):
     header.delete()
     messages.success(request, "Removed header.")
     return redirect("core:header_list")
+
+
+@login_required
+def notes_list(request):
+    project = Project.get_active()
+
+    if request.method == "POST":
+        text = request.POST.get("text", "").strip()
+        if text:
+            ProjectNote.objects.create(project=project, text=text)
+            messages.success(request, "Note added.")
+        return redirect("core:notes_list")
+
+    return render(request, "core/notes_list.html", {"project": project})
+
+
+@login_required
+@require_POST
+def note_edit(request, pk):
+    note = get_object_or_404(ProjectNote, pk=pk, project=Project.get_active())
+    text = request.POST.get("text", "").strip()
+    if text:
+        note.text = text
+        note.save(update_fields=["text", "updated_at"])
+        messages.success(request, "Note updated.")
+    return redirect("core:notes_list")
+
+
+@login_required
+@require_POST
+def note_delete(request, pk):
+    note = get_object_or_404(ProjectNote, pk=pk, project=Project.get_active())
+    note.delete()
+    messages.success(request, "Note removed.")
+    return redirect("core:notes_list")
 
 
 @csrf_exempt

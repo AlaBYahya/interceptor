@@ -136,6 +136,7 @@
         <a href="{% url 'core:project_list' %}">Projects</a>
         <a href="{% url 'core:scope_list' %}">Scope</a>
         <a href="{% url 'core:header_list' %}">Headers</a>
+        <a href="{% url 'core:notes_list' %}">Notes</a>
     </nav>
     {% if active_project %}<span class="project">project: <strong>{{ active_project.name }}</strong></span>{% endif %}
     <button type="button" id="theme-toggle" title="Toggle light/dark theme">&#9680;</button>

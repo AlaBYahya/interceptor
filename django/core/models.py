@@ -76,6 +76,23 @@ class ScopeEntry(models.Model):
         return self.pattern
 
 
+class ProjectNote(models.Model):
+    """A free-text progress-log entry for a project — a running journal of
+    what's been tried/found, distinct from a Flow's per-request note or a
+    Vulnerability's formal write-up."""
+
+    project = models.ForeignKey(Project, related_name="notes", on_delete=models.CASCADE)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.text[:50]
+
+
 class CustomHeader(models.Model):
     """A header to inject into outbound traffic for a project — most
     commonly a bug-bounty program's required identification header (e.g.
