@@ -1,3 +1,5 @@
+<img src="docs/logo.svg" width="72" height="72" alt="Interceptor logo">
+
 # Interceptor
 
 A self-hosted, Burp Suite-style web security testing toolkit — Django +

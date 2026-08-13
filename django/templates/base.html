@@ -3,60 +3,115 @@
 <head>
     <meta charset="utf-8">
     <title>{% block title %}Interceptor{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="{% static 'core/logo.svg' %}">
+    <link rel="alternate icon" href="{% static 'core/favicon.ico' %}">
+    <link rel="apple-touch-icon" href="{% static 'core/apple-touch-icon.png' %}">
+    <script>
+        (function () {
+            var stored = localStorage.getItem('interceptor-theme');
+            if (stored) document.documentElement.setAttribute('data-theme', stored);
+        })();
+    </script>
     {% block extrahead %}{% endblock %}
     <style>
-        :root { color-scheme: dark; }
-        body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #14161a; color: #e4e6eb; }
-        header { background: #1b1e24; border-bottom: 1px solid #2a2e37; padding: 0.6rem 1rem; display: flex; align-items: center; gap: 1.2rem; }
-        header a { color: #cfd3da; text-decoration: none; font-size: 0.92rem; }
-        header a.brand { font-weight: 700; color: #e4e6eb; font-size: 1.05rem; }
+        :root {
+            --bg: #14161a;
+            --bg-elevated: #1b1e24;
+            --bg-elevated-2: #0f1114;
+            --bg-hover: #1b1e24;
+            --border: #2a2e37;
+            --text: #e4e6eb;
+            --text-dim: #cfd3da;
+            --text-muted: #9aa1ab;
+            --link: #6ea8fe;
+            --badge-info-bg: #24344d; --badge-info-fg: #8ab4f8;
+            --badge-low-bg: #2d3b2e; --badge-low-fg: #9ccf9f;
+            --badge-medium-bg: #4d3a24; --badge-medium-fg: #f6b26b;
+            --badge-high-bg: #4d2424; --badge-high-fg: #f28b82;
+            --badge-purple-bg: #3d2a52; --badge-purple-fg: #c792ea;
+            --badge-neutral-bg: #2a2e37; --badge-neutral-fg: #9aa1ab;
+            --finding-medium-bg: rgba(246, 178, 107, 0.06);
+            --finding-high-bg: rgba(242, 139, 130, 0.09);
+            --diff-add-bg: rgba(156, 207, 159, 0.08);
+            --diff-del-bg: rgba(242, 139, 130, 0.08);
+            color-scheme: dark;
+        }
+        :root[data-theme="light"] {
+            --bg: #f5f6f8;
+            --bg-elevated: #ffffff;
+            --bg-elevated-2: #eef0f3;
+            --bg-hover: #f0f2f5;
+            --border: #dde1e7;
+            --text: #1c1f26;
+            --text-dim: #3f4550;
+            --text-muted: #6b7280;
+            --link: #2563eb;
+            --badge-info-bg: #e3edfd; --badge-info-fg: #1d4ed8;
+            --badge-low-bg: #e2f5e6; --badge-low-fg: #1f8a3d;
+            --badge-medium-bg: #fdf0e0; --badge-medium-fg: #b56309;
+            --badge-high-bg: #fde3e1; --badge-high-fg: #c62d23;
+            --badge-purple-bg: #f0e6fb; --badge-purple-fg: #7c3aed;
+            --badge-neutral-bg: #eceef1; --badge-neutral-fg: #5b6472;
+            --finding-medium-bg: rgba(181, 99, 9, 0.06);
+            --finding-high-bg: rgba(198, 45, 35, 0.08);
+            --diff-add-bg: rgba(31, 138, 61, 0.08);
+            --diff-del-bg: rgba(198, 45, 35, 0.08);
+            color-scheme: light;
+        }
+        body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+        header { background: var(--bg-elevated); border-bottom: 1px solid var(--border); padding: 0.6rem 1rem; display: flex; align-items: center; gap: 1.2rem; }
+        header a { color: var(--text-dim); text-decoration: none; font-size: 0.92rem; }
+        header a.brand { font-weight: 700; color: var(--text); font-size: 1.05rem; display: inline-flex; align-items: center; gap: 0.4rem; }
+        header a.brand img { display: block; }
         header nav { display: flex; gap: 1rem; flex: 1; }
-        header nav a.active { color: #6ea8fe; }
-        header .project { margin-left: auto; font-size: 0.85rem; color: #9aa1ab; }
+        header nav a.active { color: var(--link); }
+        header .project { margin-left: auto; font-size: 0.85rem; color: var(--text-muted); }
+        #theme-toggle { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: 4px; padding: 0.25rem 0.5rem; font-size: 0.85rem; cursor: pointer; }
+        #theme-toggle:hover { border-color: var(--link); }
         main { padding: 1.2rem; max-width: 1200px; margin: 0 auto; }
         table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
-        th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #2a2e37; }
-        th { color: #9aa1ab; font-weight: 600; }
-        tr:hover { background: #1b1e24; }
-        tr.finding-info { box-shadow: inset 3px 0 0 #8ab4f8; }
-        tr.finding-low { box-shadow: inset 3px 0 0 #9ccf9f; }
-        tr.finding-medium { box-shadow: inset 3px 0 0 #f6b26b; background: rgba(246, 178, 107, 0.06); }
-        tr.finding-high { box-shadow: inset 3px 0 0 #f28b82; background: rgba(242, 139, 130, 0.09); }
-        mark.param-interesting { background: #4d3a24; color: #f6b26b; padding: 0 0.15rem; border-radius: 2px; }
-        mark.param-secret { background: #4d2424; color: #f28b82; padding: 0 0.15rem; border-radius: 2px; }
-        a { color: #6ea8fe; }
+        th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-muted); font-weight: 600; }
+        tr:hover { background: var(--bg-hover); }
+        tr.finding-info { box-shadow: inset 3px 0 0 var(--badge-info-fg); }
+        tr.finding-low { box-shadow: inset 3px 0 0 var(--badge-low-fg); }
+        tr.finding-medium { box-shadow: inset 3px 0 0 var(--badge-medium-fg); background: var(--finding-medium-bg); }
+        tr.finding-high { box-shadow: inset 3px 0 0 var(--badge-high-fg); background: var(--finding-high-bg); }
+        mark.param-interesting { background: var(--badge-medium-bg); color: var(--badge-medium-fg); padding: 0 0.15rem; border-radius: 2px; }
+        mark.param-secret { background: var(--badge-high-bg); color: var(--badge-high-fg); padding: 0 0.15rem; border-radius: 2px; }
+        a { color: var(--link); }
         .badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.78rem; }
-        .badge-info { background: #24344d; color: #8ab4f8; }
-        .badge-low { background: #2d3b2e; color: #9ccf9f; }
-        .badge-medium { background: #4d3a24; color: #f6b26b; }
-        .badge-high { background: #4d2424; color: #f28b82; }
-        .badge-out-of-scope { background: #4d2424; color: #f28b82; }
-        .badge-in-scope { background: #2d3b2e; color: #9ccf9f; }
-        .badge-status-tested { background: #2a2e37; color: #9aa1ab; }
-        .badge-status-interesting { background: #3d2a52; color: #c792ea; }
-        .badge-status-confirmed { background: #4d2424; color: #f28b82; }
-        .badge-status-false_positive { background: #2a2e37; color: #9aa1ab; }
-        .note-icon { color: #9aa1ab; text-decoration: none; }
-        input, textarea, select, button { font-family: inherit; font-size: 0.9rem; background: #1b1e24; color: #e4e6eb; border: 1px solid #2a2e37; border-radius: 4px; padding: 0.4rem 0.5rem; }
+        .badge-info { background: var(--badge-info-bg); color: var(--badge-info-fg); }
+        .badge-low { background: var(--badge-low-bg); color: var(--badge-low-fg); }
+        .badge-medium { background: var(--badge-medium-bg); color: var(--badge-medium-fg); }
+        .badge-high { background: var(--badge-high-bg); color: var(--badge-high-fg); }
+        .badge-out-of-scope { background: var(--badge-high-bg); color: var(--badge-high-fg); }
+        .badge-in-scope { background: var(--badge-low-bg); color: var(--badge-low-fg); }
+        .badge-status-tested { background: var(--badge-neutral-bg); color: var(--badge-neutral-fg); }
+        .badge-status-interesting { background: var(--badge-purple-bg); color: var(--badge-purple-fg); }
+        .badge-status-confirmed { background: var(--badge-high-bg); color: var(--badge-high-fg); }
+        .badge-status-false_positive { background: var(--badge-neutral-bg); color: var(--badge-neutral-fg); }
+        .note-icon { color: var(--text-muted); text-decoration: none; }
+        input, textarea, select, button { font-family: inherit; font-size: 0.9rem; background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 0.4rem 0.5rem; }
         button { cursor: pointer; }
-        button:hover { border-color: #6ea8fe; }
+        button:hover { border-color: var(--link); }
         textarea { width: 100%; box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, monospace; }
         form.inline { display: inline; }
-        .diff-add { color: #9ccf9f; background: rgba(156, 207, 159, 0.08); display: block; }
-        .diff-del { color: #f28b82; background: rgba(242, 139, 130, 0.08); display: block; }
+        .diff-add { color: var(--badge-low-fg); background: var(--diff-add-bg); display: block; }
+        .diff-del { color: var(--badge-high-fg); background: var(--diff-del-bg); display: block; }
         .filters { display: flex; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
         .messages { list-style: none; padding: 0; margin: 0 0 1rem; }
-        .messages li { padding: 0.5rem 0.8rem; border-radius: 4px; margin-bottom: 0.4rem; background: #1b1e24; border: 1px solid #2a2e37; }
-        .panel { background: #1b1e24; border: 1px solid #2a2e37; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+        .messages li { padding: 0.5rem 0.8rem; border-radius: 4px; margin-bottom: 0.4rem; background: var(--bg-elevated); border: 1px solid var(--border); }
+        .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-        pre.raw { white-space: pre-wrap; word-break: break-all; background: #0f1114; padding: 0.8rem; border-radius: 4px; max-height: 480px; overflow: auto; }
-        .muted { color: #9aa1ab; }
-        .coming-soon { padding: 2rem; text-align: center; color: #9aa1ab; }
+        pre.raw { white-space: pre-wrap; word-break: break-all; background: var(--bg-elevated-2); padding: 0.8rem; border-radius: 4px; max-height: 480px; overflow: auto; }
+        .muted { color: var(--text-muted); }
+        .coming-soon { padding: 2rem; text-align: center; color: var(--text-muted); }
         .sitemap-tree, .sitemap-tree ul { list-style: none; margin: 0; padding-left: 1.2rem; }
         .sitemap-tree { padding-left: 0; }
         .sitemap-tree li { margin: 0.15rem 0; }
         .sitemap-tree summary { cursor: pointer; }
-        .sitemap-tree summary:hover { color: #6ea8fe; }
+        .sitemap-tree summary:hover { color: var(--link); }
         .sitemap-tree .badge { margin-left: 0.3rem; }
         .split-view { display: grid; grid-template-columns: 1.2fr 1fr; gap: 1rem; align-items: start; }
         .split-detail { position: sticky; top: 0.8rem; }
@@ -65,7 +120,7 @@
 </head>
 <body>
 <header>
-    <a class="brand" href="{% url 'traffic:history' %}">Interceptor</a>
+    <a class="brand" href="{% url 'traffic:history' %}"><img src="{% static 'core/logo.svg' %}" alt="" width="22" height="22"> Interceptor</a>
     <nav>
         <a href="{% url 'traffic:history' %}">Traffic</a>
         <a href="{% url 'traffic:sitemap' %}">Site map</a>
@@ -83,6 +138,7 @@
         <a href="{% url 'core:header_list' %}">Headers</a>
     </nav>
     {% if active_project %}<span class="project">project: <strong>{{ active_project.name }}</strong></span>{% endif %}
+    <button type="button" id="theme-toggle" title="Toggle light/dark theme">&#9680;</button>
     {% if user.is_authenticated %}<a href="{% url 'logout' %}">Log out</a>{% endif %}
 </header>
 <main>
@@ -93,5 +149,13 @@
     {% endif %}
     {% block content %}{% endblock %}
 </main>
+<script>
+    document.getElementById('theme-toggle').addEventListener('click', function () {
+        var root = document.documentElement;
+        var next = (root.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
+        root.setAttribute('data-theme', next);
+        localStorage.setItem('interceptor-theme', next);
+    });
+</script>
 </body>
 </html>
