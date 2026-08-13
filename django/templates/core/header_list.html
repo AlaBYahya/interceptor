@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Headers — Interceptor{% endblock %}
+{% block content %}
+<h2>Custom Headers — {{ project.name }}</h2>
+<p class="muted">Injected into outbound requests whenever that header name isn't already set on the request. Typical use: a bug-bounty program's required identification header.</p>
+
+<form method="post" class="panel">
+    {% csrf_token %}
+    <input type="text" name="name" placeholder="Header name (e.g. X-Bug-Bounty)" required style="width: 220px;">
+    <input type="text" name="value" placeholder="Value" style="width: 220px;">
+    <label style="display:inline-flex;align-items:center;gap:0.3rem;">
+        <input type="checkbox" name="apply_to_proxy_traffic" checked> proxy traffic
+    </label>
+    <label style="display:inline-flex;align-items:center;gap:0.3rem;">
+        <input type="checkbox" name="apply_to_tool_traffic" checked> repeater/intruder/scanner
+    </label>
+    <button type="submit">Add</button>
+</form>
+
+<table>
+    <thead><tr><th>Name</th><th>Value</th><th>Proxy traffic</th><th>Tool traffic</th><th></th></tr></thead>
+    <tbody>
+        {% for header in project.custom_headers.all %}
+        <tr>
+            <td>{{ header.name }}</td>
+            <td class="muted">{{ header.value }}</td>
+            <td>{% if header.apply_to_proxy_traffic %}yes{% else %}—{% endif %}</td>
+            <td>{% if header.apply_to_tool_traffic %}yes{% else %}—{% endif %}</td>
+            <td>
+                <form class="inline" method="post" action="{% url 'core:header_delete' header.pk %}">
+                    {% csrf_token %}
+                    <button type="submit">Remove</button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="muted">No custom headers yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

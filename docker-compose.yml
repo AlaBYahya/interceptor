@@ -1,0 +1,78 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-interceptor}
+      POSTGRES_USER: ${POSTGRES_USER:-interceptor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    networks:
+      - internal
+
+  web:
+    build:
+      context: ./django
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    entrypoint: ["/app/entrypoint.sh"]
+    command: ["gunicorn", "interceptor.wsgi:application", "--bind", "0.0.0.0:8000"]
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./django:/app
+    networks:
+      - internal
+
+  worker:
+    build:
+      context: ./django
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    command: ["celery", "-A", "interceptor", "worker", "-l", "info"]
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+      - web
+    volumes:
+      - ./django:/app
+    networks:
+      - internal
+
+  proxy:
+    build:
+      context: ./mitmproxy
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - web
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - mitm_ca:/home/mitmproxy/.mitmproxy
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  db_data:
+  mitm_ca:

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Findings — Interceptor{% endblock %}
+{% block content %}
+<h2>Findings</h2>
+<p class="muted">Automatic passive checks run on every captured request. <a href="{% url 'scanner:active_scan' %}">Active scanner &rarr;</a></p>
+
+<form class="filters" method="get">
+    <select name="severity">
+        <option value="">any severity</option>
+        <option value="high" {% if filters.severity == "high" %}selected{% endif %}>high</option>
+        <option value="medium" {% if filters.severity == "medium" %}selected{% endif %}>medium</option>
+        <option value="low" {% if filters.severity == "low" %}selected{% endif %}>low</option>
+        <option value="info" {% if filters.severity == "info" %}selected{% endif %}>info</option>
+    </select>
+    <select name="source">
+        <option value="">any source</option>
+        <option value="passive" {% if filters.source == "passive" %}selected{% endif %}>passive</option>
+        <option value="active" {% if filters.source == "active" %}selected{% endif %}>active</option>
+        <option value="nmap" {% if filters.source == "nmap" %}selected{% endif %}>nmap</option>
+        <option value="searchsploit" {% if filters.source == "searchsploit" %}selected{% endif %}>searchsploit</option>
+        <option value="nuclei" {% if filters.source == "nuclei" %}selected{% endif %}>nuclei</option>
+    </select>
+    <select name="review_status">
+        <option value="">any triage status</option>
+        <option value="unreviewed" {% if filters.review_status == "unreviewed" %}selected{% endif %}>unreviewed</option>
+        <option value="confirmed" {% if filters.review_status == "confirmed" %}selected{% endif %}>confirmed</option>
+        <option value="false_positive" {% if filters.review_status == "false_positive" %}selected{% endif %}>false positive</option>
+    </select>
+    <button type="submit">Filter</button>
+    <a href="{% url 'scanner:findings' %}">clear</a>
+    <span class="muted">|</span>
+    <a href="{% url 'scanner:export_findings' %}?format=csv&severity={{ filters.severity }}&source={{ filters.source }}">Export CSV</a>
+    <a href="{% url 'scanner:export_findings' %}?format=markdown&severity={{ filters.severity }}&source={{ filters.source }}">Export Markdown</a>
+</form>
+
+<table>
+    <thead><tr><th>Severity</th><th>Title</th><th>Source</th><th>Flow</th><th>Found</th><th>Triage</th></tr></thead>
+    <tbody>
+        {% for finding in findings %}
+        <tr>
+            <td><span class="badge badge-{{ finding.severity }}">{{ finding.severity }}</span></td>
+            <td>{{ finding.title }}<br><span class="muted">{{ finding.description }}</span></td>
+            <td>{{ finding.source }}</td>
+            <td>{% if finding.flow %}<a href="{% url 'traffic:flow_detail' finding.flow.pk %}">{{ finding.flow.method }} {{ finding.flow.host }}</a>{% else %}—{% endif %}</td>
+            <td class="muted">{{ finding.created_at|date:"H:i:s" }}</td>
+            <td>
+                <form class="inline" method="post" action="{% url 'scanner:finding_update' finding.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <select name="review_status" onchange="this.form.submit()">
+                        <option value="unreviewed" {% if finding.review_status == "unreviewed" %}selected{% endif %}>—</option>
+                        <option value="confirmed" {% if finding.review_status == "confirmed" %}selected{% endif %}>confirmed</option>
+                        <option value="false_positive" {% if finding.review_status == "false_positive" %}selected{% endif %}>false positive</option>
+                    </select>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="muted">No findings yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

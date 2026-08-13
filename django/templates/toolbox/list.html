@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Toolbox — Interceptor{% endblock %}
+{% block extrahead %}{% if has_active_job %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
+{% block content %}
+<h2>Toolbox</h2>
+
+<div class="panel">
+    <h3>nmap</h3>
+    <p class="muted">Scope-checked port/service scan. Results become Findings (source=nmap).</p>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="tool" value="nmap">
+        <input type="text" name="target" placeholder="host or IP" value="{{ prefill_target }}" style="width: 40%;">
+        <select name="profile">
+            <option value="quick">quick (top 100 ports, fast)</option>
+            <option value="version" selected>version detection (default, top 100 ports)</option>
+            <option value="full">full (all 65535 ports — slow)</option>
+        </select>
+        <button type="submit">Start nmap scan</button>
+    </form>
+</div>
+
+<div class="panel">
+    <h3>searchsploit</h3>
+    <p class="muted">Local exploit-db lookup by service/version string — no network call, not scope-checked. Results become Findings (source=searchsploit).</p>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="tool" value="searchsploit">
+        <input type="text" name="query" placeholder="e.g. apache 2.4.49" style="width: 40%;">
+        <button type="submit">Search exploit-db</button>
+    </form>
+</div>
+
+<div class="panel">
+    <h3>nuclei</h3>
+    <p class="muted">Scope-checked template-based vulnerability scan, restricted to medium+ severity and excluding dos/intrusive/fuzz-tagged templates by default. Results become Findings (source=nuclei).</p>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="tool" value="nuclei">
+        <input type="text" name="target" placeholder="https://example.com" value="{{ prefill_target }}" style="width: 40%;">
+        <button type="submit">Start nuclei scan</button>
+    </form>
+    <form method="post" style="margin-top: 0.6rem;">
+        {% csrf_token %}
+        <input type="hidden" name="tool" value="nuclei_update">
+        <button type="submit">Update nuclei templates</button>
+    </form>
+</div>
+
+<h3>Jobs</h3>
+<table>
+    <thead><tr><th>Tool</th><th>Target/Query</th><th>Status</th><th>Created</th><th></th></tr></thead>
+    <tbody>
+        {% for job in jobs %}
+        <tr>
+            <td>{{ job.tool }}</td>
+            <td>{{ job.target|default:job.query|truncatechars:60 }}</td>
+            <td><span class="badge badge-info">{{ job.status }}</span></td>
+            <td class="muted">{{ job.created_at|date:"H:i:s" }}</td>
+            <td><a href="{% url 'toolbox:job_detail' job.pk %}">output</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="muted">No toolbox jobs yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

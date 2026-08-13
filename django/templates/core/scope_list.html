@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Scope — Interceptor{% endblock %}
+{% block content %}
+<h2>Scope — {{ project.name }}</h2>
+<p class="muted">Repeater, Intruder, the active scanner, and nmap/nuclei jobs refuse to send to anything not matching a pattern here. Host globs (e.g. <code>*.example.com</code>) or CIDR ranges (e.g. <code>10.0.0.0/8</code>).</p>
+
+<div class="panel">
+    <h3>Proxy capture</h3>
+    <p class="muted">Out-of-scope traffic still gets proxied through to the real site either way — this only controls whether Interceptor saves it to history.</p>
+    <form method="post" action="{% url 'core:set_capture_mode' %}">
+        {% csrf_token %}
+        <select name="capture_mode">
+            {% for value, label in project.CAPTURE_MODE_CHOICES %}
+            <option value="{{ value }}" {% if project.capture_mode == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Save</button>
+    </form>
+</div>
+
+<form method="post" class="panel">
+    {% csrf_token %}
+    <input type="text" name="pattern" placeholder="*.example.com or 10.0.0.0/8" required style="width: 250px;">
+    <input type="text" name="note" placeholder="note (optional)">
+    <button type="submit">Add</button>
+</form>
+
+<table>
+    <thead><tr><th>Pattern</th><th>Note</th><th>Added</th><th></th></tr></thead>
+    <tbody>
+        {% for entry in project.scope_entries.all %}
+        <tr>
+            <td>{{ entry.pattern }}</td>
+            <td class="muted">{{ entry.note }}</td>
+            <td class="muted">{{ entry.created_at|date:"Y-m-d H:i" }}</td>
+            <td>
+                <form class="inline" method="post" action="{% url 'core:scope_delete' entry.pk %}">
+                    {% csrf_token %}
+                    <button type="submit">Remove</button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="muted">No scope entries yet — nothing is authorized to send to until you add one.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

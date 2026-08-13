@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Technologies — Interceptor{% endblock %}
+{% block content %}
+<h2>Technologies</h2>
+<p class="muted">Detected passively from captured response headers/HTML (server banners, X-Powered-By, generator meta tags, JS framework signatures) — not an exhaustive fingerprint database, just the common cases.</p>
+
+{% for host, techs in by_host %}
+<div class="panel">
+    <h3>{{ host }}</h3>
+    <p>
+        {% for tech in techs %}
+        <span class="badge badge-info">{{ tech.name }}{% if tech.version %} {{ tech.version }}{% endif %}</span>
+        {% endfor %}
+    </p>
+</div>
+{% empty %}
+<p class="muted">Nothing detected yet.</p>
+{% endfor %}
+{% endblock %}

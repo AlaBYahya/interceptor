@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load highlight_tags %}
+{% block title %}Traffic — Interceptor{% endblock %}
+{% block content %}
+<h2>HTTP History</h2>
+{% if flows %}
+<form method="post" action="{% url 'traffic:history_clear' %}" onsubmit="return confirm('Delete all {{ flows|length }}+ captured requests for this project? This cannot be undone.');" style="margin-bottom: 0.6rem;">
+    {% csrf_token %}
+    <button type="submit">Clear all history</button>
+</form>
+{% endif %}
+<form class="filters" method="get">
+    <input type="text" name="q" placeholder="search host, URL, or notes..." value="{{ filters.q }}" style="width: 260px;">
+    <select name="method">
+        <option value="">any method</option>
+        <option value="GET" {% if filters.method == "GET" %}selected{% endif %}>GET</option>
+        <option value="POST" {% if filters.method == "POST" %}selected{% endif %}>POST</option>
+        <option value="PUT" {% if filters.method == "PUT" %}selected{% endif %}>PUT</option>
+        <option value="DELETE" {% if filters.method == "DELETE" %}selected{% endif %}>DELETE</option>
+        <option value="PATCH" {% if filters.method == "PATCH" %}selected{% endif %}>PATCH</option>
+        <option value="HEAD" {% if filters.method == "HEAD" %}selected{% endif %}>HEAD</option>
+        <option value="OPTIONS" {% if filters.method == "OPTIONS" %}selected{% endif %}>OPTIONS</option>
+    </select>
+    <input type="text" name="status" placeholder="status code" value="{{ filters.status }}" style="width: 6rem;">
+    <select name="review_status">
+        <option value="">any colour</option>
+        <option value="unreviewed" {% if filters.review_status == "unreviewed" %}selected{% endif %}>unmarked</option>
+        <option value="tested" {% if filters.review_status == "tested" %}selected{% endif %}>tested</option>
+        <option value="interesting" {% if filters.review_status == "interesting" %}selected{% endif %}>interesting</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:0.3rem;">
+        <input type="checkbox" name="scope_only" value="1" {% if filters.scope_only %}checked{% endif %}>
+        in-scope only
+    </label>
+    <button type="submit">Filter</button>
+    <a href="{% url 'traffic:history' %}">clear</a>
+</form>
+
+<form id="bulk-delete-form" method="post" action="{% url 'traffic:flow_delete_selected' %}" onsubmit="return confirm('Delete the selected requests?');">
+    {% csrf_token %}
+</form>
+<p><button type="submit" form="bulk-delete-form">Delete selected</button></p>
+
+<table>
+    <thead>
+        <tr>
+            <th><input type="checkbox" onclick="var cs=document.querySelectorAll('.row-check');for(var i=0;i<cs.length;i++){cs[i].checked=this.checked;}"></th>
+            <th><a href="{{ sort_urls.time }}">Time {{ sort_arrows.time }}</a></th>
+            <th><a href="{{ sort_urls.method }}">Method {{ sort_arrows.method }}</a></th>
+            <th><a href="{{ sort_urls.host }}">Host {{ sort_arrows.host }}</a></th>
+            <th>Path</th>
+            <th><a href="{{ sort_urls.status }}">Status {{ sort_arrows.status }}</a></th>
+            <th><a href="{{ sort_urls.length }}">Length {{ sort_arrows.length }}</a></th>
+            <th>Mark</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for flow in flows %}
+        <tr class="{% if flow.finding_severity %}finding-{{ flow.finding_severity }}{% endif %}">
+            <td><input type="checkbox" class="row-check" name="selected" value="{{ flow.pk }}" form="bulk-delete-form"></td>
+            <td class="muted">{{ flow.timestamp|date:"H:i:s" }}</td>
+            <td>{{ flow.method }}</td>
+            <td>{{ flow.host }}</td>
+            <td>
+                <a href="{% url 'traffic:flow_detail' flow.pk %}">{{ flow.url|path_only|truncatechars:80 }}</a>
+                {% if flow.finding_severity %}<span class="badge badge-{{ flow.finding_severity }}">{{ flow.finding_severity }}</span>{% endif %}
+                {% if flow.review_status != "unreviewed" %}<span class="badge badge-status-{{ flow.review_status }}">{{ flow.get_review_status_display }}</span>{% endif %}
+                {% if flow.note %}<a class="note-icon" href="{% url 'traffic:flow_detail' flow.pk %}" title="{{ flow.note }}">&#128221;</a>{% endif %}
+            </td>
+            <td>{{ flow.status_code|default:"—" }}</td>
+            <td class="muted">{{ flow.response_body|length }}</td>
+            <td>
+                <form class="inline" method="post" action="{% url 'traffic:flow_update' flow.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <select name="review_status" onchange="this.form.submit()">
+                        <option value="unreviewed" {% if flow.review_status == "unreviewed" %}selected{% endif %}>—</option>
+                        <option value="tested" {% if flow.review_status == "tested" %}selected{% endif %}>tested</option>
+                        <option value="interesting" {% if flow.review_status == "interesting" %}selected{% endif %}>interesting</option>
+                    </select>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="muted">No traffic captured yet. Point a browser at the proxy (127.0.0.1:8080) and browse somewhere.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

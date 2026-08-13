@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Active Scanner — Interceptor{% endblock %}
+{% block extrahead %}{% if has_active_job %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
+{% block content %}
+<h2>Active Scanner</h2>
+<p class="muted">Opt-in, scope-checked checks against a single target. Results land in <a href="{% url 'scanner:findings' %}?source=active">Findings (source=active)</a> alongside passive results.</p>
+
+<form method="post" class="panel">
+    {% csrf_token %}
+    <p>
+        <input type="text" name="target" placeholder="https://example.com/page?id=1" value="{{ prefill_target }}" style="width: 60%;">
+    </p>
+    <p>
+        {% for value, label in check_labels.items %}
+        <label style="display:block;"><input type="checkbox" name="checks" value="{{ value }}" {% if value == "headers" or value == "xss" or value == "sqli" %}checked{% endif %}> {{ label }}</label>
+        {% endfor %}
+    </p>
+    <p><button type="submit">Start scan</button></p>
+</form>
+
+<table>
+    <thead><tr><th>Target</th><th>Checks</th><th>Status</th><th>Created</th></tr></thead>
+    <tbody>
+        {% for job in jobs %}
+        <tr>
+            <td>{{ job.target|truncatechars:70 }}</td>
+            <td class="muted">{{ job.checks|join:", " }}</td>
+            <td><span class="badge badge-info">{{ job.status }}</span></td>
+            <td class="muted">{{ job.created_at|date:"H:i:s" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="muted">No active scans yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}Interceptor{% endblock %}</title>
+    {% block extrahead %}{% endblock %}
+    <style>
+        :root { color-scheme: dark; }
+        body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #14161a; color: #e4e6eb; }
+        header { background: #1b1e24; border-bottom: 1px solid #2a2e37; padding: 0.6rem 1rem; display: flex; align-items: center; gap: 1.2rem; }
+        header a { color: #cfd3da; text-decoration: none; font-size: 0.92rem; }
+        header a.brand { font-weight: 700; color: #e4e6eb; font-size: 1.05rem; }
+        header nav { display: flex; gap: 1rem; flex: 1; }
+        header nav a.active { color: #6ea8fe; }
+        header .project { margin-left: auto; font-size: 0.85rem; color: #9aa1ab; }
+        main { padding: 1.2rem; max-width: 1200px; margin: 0 auto; }
+        table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+        th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #2a2e37; }
+        th { color: #9aa1ab; font-weight: 600; }
+        tr:hover { background: #1b1e24; }
+        tr.finding-info { box-shadow: inset 3px 0 0 #8ab4f8; }
+        tr.finding-low { box-shadow: inset 3px 0 0 #9ccf9f; }
+        tr.finding-medium { box-shadow: inset 3px 0 0 #f6b26b; background: rgba(246, 178, 107, 0.06); }
+        tr.finding-high { box-shadow: inset 3px 0 0 #f28b82; background: rgba(242, 139, 130, 0.09); }
+        mark.param-interesting { background: #4d3a24; color: #f6b26b; padding: 0 0.15rem; border-radius: 2px; }
+        mark.param-secret { background: #4d2424; color: #f28b82; padding: 0 0.15rem; border-radius: 2px; }
+        a { color: #6ea8fe; }
+        .badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.78rem; }
+        .badge-info { background: #24344d; color: #8ab4f8; }
+        .badge-low { background: #2d3b2e; color: #9ccf9f; }
+        .badge-medium { background: #4d3a24; color: #f6b26b; }
+        .badge-high { background: #4d2424; color: #f28b82; }
+        .badge-out-of-scope { background: #4d2424; color: #f28b82; }
+        .badge-in-scope { background: #2d3b2e; color: #9ccf9f; }
+        .badge-status-tested { background: #2a2e37; color: #9aa1ab; }
+        .badge-status-interesting { background: #3d2a52; color: #c792ea; }
+        .badge-status-confirmed { background: #4d2424; color: #f28b82; }
+        .badge-status-false_positive { background: #2a2e37; color: #9aa1ab; }
+        .note-icon { color: #9aa1ab; text-decoration: none; }
+        input, textarea, select, button { font-family: inherit; font-size: 0.9rem; background: #1b1e24; color: #e4e6eb; border: 1px solid #2a2e37; border-radius: 4px; padding: 0.4rem 0.5rem; }
+        button { cursor: pointer; }
+        button:hover { border-color: #6ea8fe; }
+        textarea { width: 100%; box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, monospace; }
+        form.inline { display: inline; }
+        .diff-add { color: #9ccf9f; background: rgba(156, 207, 159, 0.08); display: block; }
+        .diff-del { color: #f28b82; background: rgba(242, 139, 130, 0.08); display: block; }
+        .filters { display: flex; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .messages { list-style: none; padding: 0; margin: 0 0 1rem; }
+        .messages li { padding: 0.5rem 0.8rem; border-radius: 4px; margin-bottom: 0.4rem; background: #1b1e24; border: 1px solid #2a2e37; }
+        .panel { background: #1b1e24; border: 1px solid #2a2e37; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        pre.raw { white-space: pre-wrap; word-break: break-all; background: #0f1114; padding: 0.8rem; border-radius: 4px; max-height: 480px; overflow: auto; }
+        .muted { color: #9aa1ab; }
+        .coming-soon { padding: 2rem; text-align: center; color: #9aa1ab; }
+        .sitemap-tree, .sitemap-tree ul { list-style: none; margin: 0; padding-left: 1.2rem; }
+        .sitemap-tree { padding-left: 0; }
+        .sitemap-tree li { margin: 0.15rem 0; }
+        .sitemap-tree summary { cursor: pointer; }
+        .sitemap-tree summary:hover { color: #6ea8fe; }
+        .sitemap-tree .badge { margin-left: 0.3rem; }
+        .split-view { display: grid; grid-template-columns: 1.2fr 1fr; gap: 1rem; align-items: start; }
+        .split-detail { position: sticky; top: 0.8rem; }
+        @media (max-width: 900px) { .split-view { grid-template-columns: 1fr; } .split-detail { position: static; } }
+    </style>
+</head>
+<body>
+<header>
+    <a class="brand" href="{% url 'traffic:history' %}">Interceptor</a>
+    <nav>
+        <a href="{% url 'traffic:history' %}">Traffic</a>
+        <a href="{% url 'traffic:sitemap' %}">Site map</a>
+        <a href="{% url 'traffic:crawler' %}">Crawler</a>
+        <a href="{% url 'repeater:list' %}">Repeater</a>
+        <a href="{% url 'intruder:list' %}">Intruder</a>
+        <a href="{% url 'scanner:findings' %}">Scanner</a>
+        <a href="{% url 'scanner:vulnerabilities' %}">Vulnerabilities</a>
+        <a href="{% url 'scanner:technologies' %}">Technologies</a>
+        <a href="{% url 'toolbox:list' %}">Toolbox</a>
+        <a href="{% url 'utils:decoder' %}">Decoder</a>
+        <a href="{% url 'utils:comparer' %}">Comparer</a>
+        <a href="{% url 'core:project_list' %}">Projects</a>
+        <a href="{% url 'core:scope_list' %}">Scope</a>
+        <a href="{% url 'core:header_list' %}">Headers</a>
+    </nav>
+    {% if active_project %}<span class="project">project: <strong>{{ active_project.name }}</strong></span>{% endif %}
+    {% if user.is_authenticated %}<a href="{% url 'logout' %}">Log out</a>{% endif %}
+</header>
+<main>
+    {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{% load highlight_tags %}
+<li>
+    {% if node.children %}
+    <details open>
+        <summary>
+            {% if node.rolled_severity %}<span class="badge badge-{{ node.rolled_severity }}" title="highest severity finding under this folder">{{ node.rolled_severity }}</span>{% endif %}
+            {{ node.name }}/
+            <a class="muted" href="{% url 'traffic:history' %}?q={{ node.full_path|urlencode }}">view all</a>
+            {% if node.is_leaf %}
+                {% for me in node.method_entries %}<a class="badge badge-info" href="{% url 'traffic:sitemap' %}?flow={{ me.flow_id }}">{{ me.method }}</a>{% if me.count > 1 %}<a class="muted" href="{% url 'traffic:history' %}?q={{ node.full_path|urlencode }}&amp;method={{ me.method }}">(+{{ me.count }})</a>{% endif %}{% endfor %}
+                {% if node.discovered_only %}<span class="badge badge-medium">not yet requested</span>{% endif %}
+            {% endif %}
+        </summary>
+        <ul>
+            {% for child in node.children %}
+                {% include "traffic/_sitemap_node.html" with node=child %}
+            {% endfor %}
+        </ul>
+    </details>
+    {% else %}
+        {% if node.own_severity %}<span class="badge badge-{{ node.own_severity }}">{{ node.own_severity }}</span>{% endif %}
+        {{ node.name }}
+        {% for me in node.method_entries %}<a class="badge badge-info" href="{% url 'traffic:sitemap' %}?flow={{ me.flow_id }}">{{ me.method }}</a>{% if me.count > 1 %}<a class="muted" href="{% url 'traffic:history' %}?q={{ node.full_path|urlencode }}&amp;method={{ me.method }}">(+{{ me.count }})</a>{% endif %}{% endfor %}
+        {% if node.discovered_only %}<span class="badge badge-medium">not yet requested</span>{% endif %}
+    {% endif %}
+</li>

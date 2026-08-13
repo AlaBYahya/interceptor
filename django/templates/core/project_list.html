@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Projects — Interceptor{% endblock %}
+{% block content %}
+<h2>Projects</h2>
+<p class="muted">The active project is what the mitmproxy addon attaches newly captured traffic to, and what Repeater/Intruder/Scanner/Toolbox operate on.</p>
+
+<form method="post" class="panel">
+    {% csrf_token %}
+    <input type="text" name="name" placeholder="New project name" required>
+    <button type="submit">Create</button>
+</form>
+
+<form method="post" action="{% url 'core:project_import' %}" enctype="multipart/form-data" class="panel">
+    {% csrf_token %}
+    <p class="muted">Import a project exported from Interceptor (creates a new project; renames automatically on a name clash).</p>
+    <input type="file" name="import_file" accept="application/json">
+    <button type="submit">Import</button>
+</form>
+
+<table>
+    <thead><tr><th>Name</th><th>Status</th><th>Created</th><th></th></tr></thead>
+    <tbody>
+        {% for project in projects %}
+        <tr>
+            <td>{{ project.name }}</td>
+            <td>{% if project.is_active %}<span class="badge badge-in-scope">active</span>{% endif %}</td>
+            <td class="muted">{{ project.created_at|date:"Y-m-d H:i" }}</td>
+            <td>
+                {% if not project.is_active %}
+                <form class="inline" method="post" action="{% url 'core:project_activate' project.pk %}">
+                    {% csrf_token %}
+                    <button type="submit">Activate</button>
+                </form>
+                {% endif %}
+                <a href="{% url 'core:project_export' project.pk %}"><button type="button">Export</button></a>
+                <form class="inline" method="post" action="{% url 'core:project_delete' project.pk %}" onsubmit="return confirm('Delete project \'{{ project.name }}\' and ALL its data (traffic, findings, vulnerabilities, everything)? This cannot be undone.');">
+                    {% csrf_token %}
+                    <button type="submit">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

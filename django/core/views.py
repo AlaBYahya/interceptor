@@ -1,0 +1,161 @@
+import json
+
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
+from .models import CustomHeader, Project, ScopeEntry
+from .project_transfer import export_project, import_project
+
+
+@login_required
+def project_list(request):
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        if name:
+            project, created = Project.objects.get_or_create(name=name)
+            if created:
+                messages.success(request, f"Created project '{name}'.")
+            else:
+                messages.info(request, f"Project '{name}' already exists.")
+        return redirect("core:project_list")
+
+    projects = Project.objects.all()
+    return render(request, "core/project_list.html", {"projects": projects})
+
+
+@login_required
+def project_activate(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    project.is_active = True
+    project.save()
+    messages.success(request, f"'{project.name}' is now the active project.")
+    return redirect("core:project_list")
+
+
+@login_required
+@require_POST
+def project_delete(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    name = project.name
+    project.delete()
+    messages.success(request, f"Deleted project '{name}' and all its data.")
+    return redirect("core:project_list")
+
+
+@login_required
+def project_export(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    data = export_project(project)
+    response = HttpResponse(json.dumps(data, indent=2), content_type="application/json")
+    response["Content-Disposition"] = f'attachment; filename="{project.name}-export.json"'
+    return response
+
+
+@login_required
+@require_POST
+def project_import(request):
+    uploaded = request.FILES.get("import_file")
+    if not uploaded:
+        messages.error(request, "Choose a file to import.")
+        return redirect("core:project_list")
+
+    try:
+        data = json.loads(uploaded.read().decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        messages.error(request, "That file isn't valid JSON.")
+        return redirect("core:project_list")
+
+    try:
+        project = import_project(data)
+    except (ValueError, KeyError) as exc:
+        messages.error(request, f"Import failed: {exc}")
+        return redirect("core:project_list")
+
+    messages.success(request, f"Imported as project '{project.name}'.")
+    return redirect("core:project_list")
+
+
+@login_required
+def scope_list(request):
+    project = Project.get_active()
+
+    if request.method == "POST":
+        pattern = request.POST.get("pattern", "").strip()
+        note = request.POST.get("note", "").strip()
+        if pattern:
+            ScopeEntry.objects.create(project=project, pattern=pattern, note=note)
+            messages.success(request, f"Added scope entry '{pattern}'.")
+        return redirect("core:scope_list")
+
+    return render(request, "core/scope_list.html", {"project": project})
+
+
+@login_required
+def scope_delete(request, pk):
+    entry = get_object_or_404(ScopeEntry, pk=pk, project=Project.get_active())
+    entry.delete()
+    messages.success(request, "Removed scope entry.")
+    return redirect("core:scope_list")
+
+
+@login_required
+def set_capture_mode(request):
+    project = Project.get_active()
+    mode = request.POST.get("capture_mode", "")
+    if mode in dict(Project.CAPTURE_MODE_CHOICES):
+        project.capture_mode = mode
+        project.save()
+        messages.success(request, f"Capture mode set to '{project.get_capture_mode_display()}'.")
+    return redirect("core:scope_list")
+
+
+@login_required
+def header_list(request):
+    project = Project.get_active()
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        value = request.POST.get("value", "")
+        apply_to_proxy_traffic = request.POST.get("apply_to_proxy_traffic") == "on"
+        apply_to_tool_traffic = request.POST.get("apply_to_tool_traffic") == "on"
+        if name:
+            CustomHeader.objects.create(
+                project=project,
+                name=name,
+                value=value,
+                apply_to_proxy_traffic=apply_to_proxy_traffic,
+                apply_to_tool_traffic=apply_to_tool_traffic,
+            )
+            messages.success(request, f"Added header '{name}'.")
+        return redirect("core:header_list")
+
+    return render(request, "core/header_list.html", {"project": project})
+
+
+@login_required
+def header_delete(request, pk):
+    header = get_object_or_404(CustomHeader, pk=pk, project=Project.get_active())
+    header.delete()
+    messages.success(request, "Removed header.")
+    return redirect("core:header_list")
+
+
+@csrf_exempt
+def api_custom_headers(request):
+    """Polled by the mitmproxy addon (shared-secret token auth, same as the
+    ingest endpoint) so it can inject the active project's proxy-scoped
+    custom headers into every request it forwards."""
+    token = request.headers.get("X-Ingest-Token", "")
+    if not settings.INGEST_TOKEN or token != settings.INGEST_TOKEN:
+        return JsonResponse({"error": "unauthorized"}, status=401)
+
+    project = Project.get_active()
+    headers = list(
+        project.custom_headers.filter(apply_to_proxy_traffic=True).values("name", "value")
+    )
+    return JsonResponse({"headers": headers})

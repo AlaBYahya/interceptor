@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ job.tool }} job — Interceptor{% endblock %}
+{% block content %}
+<p><a href="{% url 'toolbox:list' %}">&larr; back to toolbox</a></p>
+<h2>{{ job.tool }}: {{ job.target|default:job.query }} <span class="badge badge-info">{{ job.status }}</span></h2>
+<div class="panel">
+    <p class="muted">Raw output</p>
+    <pre class="raw">{{ job.raw_output|default:"(no output yet)" }}</pre>
+</div>
+{% endblock %}

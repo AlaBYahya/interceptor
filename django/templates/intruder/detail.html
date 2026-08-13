@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ attack.label }} — Intruder{% endblock %}
+{% block extrahead %}{% if attack.status == "running" %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
+{% block content %}
+<p><a href="{% url 'intruder:list' %}">&larr; back to intruder</a></p>
+<h2>{{ attack.label|default:"Intruder" }} <span class="badge badge-info">{{ attack.status }}</span></h2>
+{% if attack.status == "running" %}<p class="muted">Running — this page refreshes automatically every few seconds.</p>{% endif %}
+{% if attack.status == "failed" and not results %}<p class="badge badge-out-of-scope">Attack didn't run — check for a marked insertion point, at least one payload, and that the URL is in scope.</p>{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <div class="panel">
+        <h3>Request template</h3>
+        <p class="muted">Likely spots (UUIDs/numeric IDs in the path, query param values, form-body values) are pre-marked in <code>§payload§</code> below — edit freely, or wrap/unwrap anything yourself the same way, e.g. <code>/user?id=§1§</code>. Sniper: sweeps the full payload list through each marked position independently, one at a time, leaving the others at their original value.</p>
+        <p>
+            <select name="method" style="width: 6rem;">
+                <option value="GET" {% if attack.method == "GET" %}selected{% endif %}>GET</option>
+                <option value="POST" {% if attack.method == "POST" %}selected{% endif %}>POST</option>
+                <option value="PUT" {% if attack.method == "PUT" %}selected{% endif %}>PUT</option>
+                <option value="DELETE" {% if attack.method == "DELETE" %}selected{% endif %}>DELETE</option>
+                <option value="PATCH" {% if attack.method == "PATCH" %}selected{% endif %}>PATCH</option>
+            </select>
+            <input type="text" name="url" value="{{ attack.url }}" style="width: 75%;">
+        </p>
+        <p class="muted">Headers (one per line, "Key: Value")</p>
+        <textarea name="headers_text" rows="6">{{ headers_text }}</textarea>
+        <p class="muted">Body</p>
+        <textarea name="body" rows="6">{{ attack.body }}</textarea>
+        <p class="muted">Payloads (one per line)</p>
+        <textarea name="payload_set" rows="8">{{ attack.payload_set }}</textarea>
+        <p><button type="submit">Start Attack</button></p>
+    </div>
+</form>
+
+<div class="panel">
+    <h3>Generate payloads</h3>
+    <p class="muted">Builds a list and saves it into the Payloads box above — review/edit it there, then click Start Attack separately.</p>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="intent" value="generate">
+        <select name="generator">
+            {% for value, label in generator_labels.items %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+        <input type="number" name="start" placeholder="start" style="width: 5rem;">
+        <input type="number" name="end" placeholder="end" style="width: 5rem;">
+        <input type="number" name="step" placeholder="step" value="1" style="width: 4rem;">
+        <input type="number" name="count" placeholder="count" style="width: 5rem;">
+        <input type="number" name="min" placeholder="min" style="width: 5rem;">
+        <input type="number" name="max" placeholder="max" style="width: 5rem;">
+        <input type="number" name="length" placeholder="length" value="8" style="width: 4rem;">
+        <label><input type="checkbox" name="append" checked> append to existing</label>
+        <button type="submit">Generate</button>
+    </form>
+    <p class="muted" style="margin-top: 0.6rem;">Or load a wordlist file (one payload per line):</p>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="intent" value="upload">
+        <input type="file" name="payload_file">
+        <label><input type="checkbox" name="append" checked> append to existing</label>
+        <button type="submit">Load file</button>
+    </form>
+</div>
+
+{% if results %}
+<div class="split-view">
+    <div class="panel">
+        <h3>Results ({{ results|length }})</h3>
+        <p class="muted">Rows highlighted where status code or response length differs from the most common (baseline) result. Click a payload to view the full request/response on the right.</p>
+        <form class="filters" method="get">
+            <input type="text" name="q" placeholder="search payload or response..." value="{{ filters.q }}" style="width: 240px;">
+            <button type="submit">Filter</button>
+            <a href="{% url 'intruder:detail' attack.pk %}">clear</a>
+        </form>
+        <table>
+            <thead>
+                <tr>
+                    <th><a href="{{ sort_urls.payload }}">Payload {{ sort_arrows.payload }}</a></th>
+                    <th><a href="{{ sort_urls.status }}">Status {{ sort_arrows.status }}</a></th>
+                    <th><a href="{{ sort_urls.length }}">Length {{ sort_arrows.length }}</a></th>
+                    <th><a href="{{ sort_urls.time }}">Time (ms) {{ sort_arrows.time }}</a></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in results %}
+                <tr class="{% if r.is_anomaly %}finding-medium{% endif %}">
+                    <td><a href="?result={{ r.pk }}{% if filters.q %}&amp;q={{ filters.q|urlencode }}{% endif %}">{{ r.payload|truncatechars:60 }}</a></td>
+                    <td>{{ r.status_code|default:"—" }}</td>
+                    <td>{{ r.length|default:"—" }}</td>
+                    <td>{{ r.duration_ms|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="split-detail">
+        {% if selected_result %}
+        <div class="panel">
+            <h3>
+                Payload: {{ selected_result.payload }}
+                {% if selected_result.status_code %}<span class="badge badge-info">{{ selected_result.status_code }}</span>{% endif %}
+            </h3>
+            {% if selected_result.error %}<p class="badge badge-out-of-scope">{{ selected_result.error }}</p>{% endif %}
+
+            <p class="muted">Request</p>
+            <pre class="raw">{{ attack.method }} {{ selected_result.request_url }}
+{% for k, v in selected_result.request_headers.items %}{{ k }}: {{ v }}
+{% endfor %}
+{{ selected_result.request_body }}</pre>
+
+            <p class="muted">Response headers</p>
+            <pre class="raw">{% for k, v in selected_result.response_headers.items %}{{ k }}: {{ v }}
+{% endfor %}</pre>
+            <p class="muted">Response body</p>
+            <pre class="raw">{{ selected_result.response_body|default:"(empty)" }}</pre>
+        </div>
+        {% else %}
+        <div class="panel">
+            <p class="muted">Click a payload in the results table to view its full request/response here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

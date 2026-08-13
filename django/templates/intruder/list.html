@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Intruder — Interceptor{% endblock %}
+{% block content %}
+<h2>Intruder</h2>
+<p class="muted">Send a request to Intruder from Traffic history (flow detail page) to start a new attack.</p>
+
+<table>
+    <thead><tr><th>Label</th><th>Method</th><th>URL</th><th>Status</th><th>Results</th><th>Created</th></tr></thead>
+    <tbody>
+        {% for attack in attacks %}
+        <tr>
+            <td><a href="{% url 'intruder:detail' attack.pk %}">{{ attack.label|default:"(untitled)" }}</a></td>
+            <td>{{ attack.method }}</td>
+            <td>{{ attack.url|truncatechars:70 }}</td>
+            <td><span class="badge badge-info">{{ attack.status }}</span></td>
+            <td class="muted">{{ attack.results.count }}</td>
+            <td class="muted">{{ attack.created_at|date:"H:i:s" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="muted">No intruder attacks yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Decoder — Interceptor{% endblock %}
+{% block content %}
+<h2>Decoder</h2>
+<p class="muted">No state is saved here — pure in-browser-request transforms.</p>
+
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="prev_output" value="{{ output_text }}">
+    <div class="grid-2">
+        <div class="panel">
+            <h3>Input</h3>
+            <textarea name="input_text" rows="12">{{ input_text }}</textarea>
+        </div>
+        <div class="panel">
+            <h3>Output</h3>
+            <pre class="raw" style="min-height: 260px;">{{ output_text }}</pre>
+        </div>
+    </div>
+    <p>
+        <select name="operation">
+            {% for value, label in operations.items %}
+            <option value="{{ value }}" {% if operation == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" name="use_output" value="0">Run</button>
+        <button type="submit" name="use_output" value="1">Use output as input, then run</button>
+    </p>
+</form>
+{% endblock %}

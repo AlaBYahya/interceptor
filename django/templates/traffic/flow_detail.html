@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load highlight_tags %}
+{% block title %}{{ flow.method }} {{ flow.host }} — Interceptor{% endblock %}
+{% block content %}
+<p><a href="{% url 'traffic:history' %}">&larr; back to history</a></p>
+<h2>
+    {{ flow.method }} {{ flow.host }}
+    {% if in_scope %}<span class="badge badge-in-scope">in scope</span>{% else %}<span class="badge badge-out-of-scope">out of scope</span>{% endif %}
+</h2>
+<p class="muted">{{ flow.url|highlight_url_params }}</p>
+<p>
+    <a href="{% url 'repeater:new' flow.pk %}"><button type="button">Send to Repeater</button></a>
+    <a href="{% url 'intruder:new' flow.pk %}"><button type="button">Send to Intruder</button></a>
+    <a href="{% url 'scanner:active_scan' %}?target={{ flow.url|urlencode }}"><button type="button">Send to Active Scanner</button></a>
+    <a href="{% url 'toolbox:list' %}?target={{ flow.host }}"><button type="button">Scan host in Toolbox</button></a>
+    <a href="{% url 'traffic:crawler' %}?seed={{ flow.url|urlencode }}"><button type="button">Crawl from here</button></a>
+    <a href="{% url 'utils:comparer' %}?a={{ flow.response_body|urlencode }}"><button type="button">Send response to Comparer</button></a>
+    <form class="inline" method="post" action="{% url 'traffic:flow_delete' flow.pk %}" onsubmit="return confirm('Delete this request?');">
+        {% csrf_token %}
+        <button type="submit">Delete</button>
+    </form>
+</p>
+
+<div class="panel">
+    <h3>Mark / Note</h3>
+    <form method="post" action="{% url 'traffic:flow_update' flow.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'traffic:flow_detail' flow.pk %}">
+        <p>
+            <select name="review_status">
+                <option value="unreviewed" {% if flow.review_status == "unreviewed" %}selected{% endif %}>Unmarked</option>
+                <option value="tested" {% if flow.review_status == "tested" %}selected{% endif %}>Tested</option>
+                <option value="interesting" {% if flow.review_status == "interesting" %}selected{% endif %}>Interesting</option>
+            </select>
+        </p>
+        <textarea name="note" rows="3" placeholder="Note...">{{ flow.note }}</textarea>
+        <p><button type="submit">Save</button></p>
+    </form>
+</div>
+
+<div class="panel">
+    <h3>Save to Vulnerability</h3>
+    {% with attached=flow.vulnerabilities.all %}
+    {% if attached %}
+    <p class="muted">Already attached to:
+        {% for v in attached %}<a href="{% url 'scanner:vulnerability_detail' v.pk %}">{{ v.title }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+    </p>
+    {% endif %}
+    {% endwith %}
+    <form method="post" action="{% url 'scanner:flow_save_to_vulnerability' flow.pk %}">
+        {% csrf_token %}
+        {% if vulnerabilities %}
+        <select name="existing_vuln">
+            <option value="">— select existing —</option>
+            {% for v in vulnerabilities %}
+            <option value="{{ v.pk }}">{{ v.title }}</option>
+            {% endfor %}
+        </select>
+        <span class="muted">or</span>
+        {% endif %}
+        <input type="text" name="new_vuln_title" placeholder="new vulnerability name">
+        <button type="submit">Save</button>
+    </form>
+</div>
+
+{% with flow_findings=flow.findings.all %}
+{% if flow_findings %}
+<div class="panel">
+    <h3>Findings on this request</h3>
+    <table>
+        <thead><tr><th>Severity</th><th>Title</th><th>Description</th></tr></thead>
+        <tbody>
+            {% for finding in flow_findings %}
+            <tr>
+                <td><span class="badge badge-{{ finding.severity }}">{{ finding.severity }}</span></td>
+                <td>{{ finding.title }}</td>
+                <td class="muted">{{ finding.description }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endwith %}
+
+<div class="grid-2">
+    <div class="panel">
+        <h3>Request</h3>
+        <p class="muted">Headers</p>
+        <pre class="raw">{% for k, v in flow.request_headers.items %}{{ k }}: {{ v }}
+{% endfor %}</pre>
+        <p class="muted">Body {% if flow.request_body_is_base64 %}(binary, base64-encoded){% endif %}</p>
+        <pre class="raw">{{ flow.request_body|default:"(empty)" }}</pre>
+    </div>
+    <div class="panel">
+        <h3>Response {% if flow.status_code %}<span class="badge badge-info">{{ flow.status_code }}</span>{% endif %}</h3>
+        <p class="muted">Headers</p>
+        <pre class="raw">{% for k, v in flow.response_headers.items %}{{ k }}: {{ v }}
+{% endfor %}</pre>
+        <p class="muted">Body {% if flow.response_body_is_base64 %}(binary, base64-encoded){% endif %}</p>
+        <pre class="raw">{{ flow.response_body|default:"(empty)" }}</pre>
+    </div>
+</div>
+{% endblock %}

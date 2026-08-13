@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Vulnerabilities — Interceptor{% endblock %}
+{% block content %}
+<h2>Vulnerabilities</h2>
+<p class="muted">Manually-curated, documented findings — distinct from the automated <a href="{% url 'scanner:findings' %}">Findings</a> scanner output. Attach the request(s) that prove it from any flow's "Save to Vulnerability" button. <a href="{% url 'scanner:export_vulnerabilities' %}">Export as Markdown report &rarr;</a></p>
+
+<form method="post" class="panel">
+    {% csrf_token %}
+    <input type="text" name="title" placeholder="Vulnerability name, e.g. IDOR on /mobile/person/{id}" style="width: 50%;">
+    <button type="submit">New</button>
+</form>
+
+<table>
+    <thead><tr><th>Severity</th><th>Title</th><th>Evidence</th><th>Updated</th></tr></thead>
+    <tbody>
+        {% for vuln in vulns %}
+        <tr>
+            <td><span class="badge badge-{{ vuln.severity }}">{{ vuln.severity }}</span></td>
+            <td><a href="{% url 'scanner:vulnerability_detail' vuln.pk %}">{{ vuln.title }}</a></td>
+            <td class="muted">{{ vuln.flows.all|length }} request(s)</td>
+            <td class="muted">{{ vuln.updated_at|date:"Y-m-d H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="muted">No vulnerabilities documented yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

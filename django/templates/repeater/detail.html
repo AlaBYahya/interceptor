@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ entry.label }} — Repeater{% endblock %}
+{% block content %}
+<p><a href="{% url 'repeater:list' %}">&larr; back to repeater</a></p>
+<h2>{{ entry.label|default:"Repeater" }}</h2>
+
+{% if entry.error %}<p class="badge badge-out-of-scope">{{ entry.error }}</p>{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <div class="grid-2">
+        <div class="panel">
+            <h3>Request</h3>
+            <p>
+                <select name="method" style="width: 6rem;">
+                    <option value="GET" {% if entry.method == "GET" %}selected{% endif %}>GET</option>
+                    <option value="POST" {% if entry.method == "POST" %}selected{% endif %}>POST</option>
+                    <option value="PUT" {% if entry.method == "PUT" %}selected{% endif %}>PUT</option>
+                    <option value="DELETE" {% if entry.method == "DELETE" %}selected{% endif %}>DELETE</option>
+                    <option value="PATCH" {% if entry.method == "PATCH" %}selected{% endif %}>PATCH</option>
+                    <option value="HEAD" {% if entry.method == "HEAD" %}selected{% endif %}>HEAD</option>
+                    <option value="OPTIONS" {% if entry.method == "OPTIONS" %}selected{% endif %}>OPTIONS</option>
+                </select>
+                <input type="text" name="url" value="{{ entry.url }}" style="width: 75%;">
+            </p>
+            <p class="muted">Headers (one per line, "Key: Value")</p>
+            <textarea name="headers_text" rows="8">{{ headers_text }}</textarea>
+            <p class="muted">Body</p>
+            <textarea name="body" rows="10">{{ entry.body }}</textarea>
+            <p><button type="submit">Send</button></p>
+        </div>
+        <div class="panel">
+            <h3>Response {% if entry.response_status %}<span class="badge badge-info">{{ entry.response_status }}</span>{% endif %}</h3>
+            <p class="muted">Headers</p>
+            <pre class="raw">{% for k, v in entry.response_headers.items %}{{ k }}: {{ v }}
+{% endfor %}</pre>
+            <p class="muted">Body</p>
+            <pre class="raw">{{ entry.response_body|default:"(no response yet — click Send)" }}</pre>
+        </div>
+    </div>
+</form>
+{% endblock %}

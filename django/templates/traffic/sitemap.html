@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load highlight_tags %}
+{% block title %}Site Map — Interceptor{% endblock %}
+{% block content %}
+<h2>Site Map</h2>
+<p class="muted">Folder-style tree of every host/path seen in captured traffic, plus paths only discovered by parsing JavaScript (marked "not yet requested"). Risk badges roll up from Findings on requests under each node — same idea as ZAP's Sites tree. Click a folder to collapse/expand it; click a method badge to view that request/response on the right, or "view all"/"(+N)" to jump to the full list in Traffic history.</p>
+
+<div class="split-view">
+    <div>
+        {% for host in hosts %}
+        <div class="panel">
+            <h3>
+                {% if host.root.rolled_severity %}<span class="badge badge-{{ host.root.rolled_severity }}">{{ host.root.rolled_severity }}</span>{% endif %}
+                {{ host.host }}
+                <a class="muted" href="{% url 'traffic:history' %}?q={{ host.host|urlencode }}">view all</a>
+                {% for tech in host.technologies %}<span class="badge badge-low">{{ tech }}</span>{% endfor %}
+            </h3>
+            <ul class="sitemap-tree">
+                {% if host.root.is_leaf %}
+                <li>
+                    {% if host.root.own_severity %}<span class="badge badge-{{ host.root.own_severity }}">{{ host.root.own_severity }}</span>{% endif %}
+                    / {% for me in host.root.method_entries %}<a class="badge badge-info" href="{% url 'traffic:sitemap' %}?flow={{ me.flow_id }}">{{ me.method }}</a>{% if me.count > 1 %}<a class="muted" href="{% url 'traffic:history' %}?q={{ host.host|urlencode }}&amp;method={{ me.method }}">(+{{ me.count }})</a>{% endif %}{% endfor %}
+                </li>
+                {% endif %}
+                {% for child in host.root.children %}
+                    {% include "traffic/_sitemap_node.html" with node=child %}
+                {% endfor %}
+            </ul>
+        </div>
+        {% empty %}
+        <p class="muted">No traffic captured yet.</p>
+        {% endfor %}
+    </div>
+
+    <div class="split-detail">
+        {% if selected_flow %}
+        <div class="panel">
+            <h3>
+                {{ selected_flow.method }} {{ selected_flow.host }}
+                {% if selected_flow.status_code %}<span class="badge badge-info">{{ selected_flow.status_code }}</span>{% endif %}
+            </h3>
+            <p class="muted">{{ selected_flow.url|highlight_url_params }}</p>
+            <p>
+                <a href="{% url 'traffic:flow_detail' selected_flow.pk %}">Full detail</a> &middot;
+                <a href="{% url 'repeater:new' selected_flow.pk %}">Send to Repeater</a> &middot;
+                <a href="{% url 'intruder:new' selected_flow.pk %}">Send to Intruder</a>
+            </p>
+
+            {% with flow_findings=selected_flow.findings.all %}
+            {% if flow_findings %}
+            <p class="muted">Findings</p>
+            {% for finding in flow_findings %}
+            <p><span class="badge badge-{{ finding.severity }}">{{ finding.severity }}</span> {{ finding.title }}</p>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <p class="muted">Request headers</p>
+            <pre class="raw">{% for k, v in selected_flow.request_headers.items %}{{ k }}: {{ v }}
+{% endfor %}</pre>
+            <p class="muted">Request body {% if selected_flow.request_body_is_base64 %}(binary, base64-encoded){% endif %}</p>
+            <pre class="raw">{{ selected_flow.request_body|default:"(empty)" }}</pre>
+
+            <p class="muted">Response headers</p>
+            <pre class="raw">{% for k, v in selected_flow.response_headers.items %}{{ k }}: {{ v }}
+{% endfor %}</pre>
+            <p class="muted">Response body {% if selected_flow.response_body_is_base64 %}(binary, base64-encoded){% endif %}</p>
+            <pre class="raw">{{ selected_flow.response_body|default:"(empty)" }}</pre>
+        </div>
+        {% else %}
+        <div class="panel">
+            <p class="muted">Click a method badge in the tree to view its request/response here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

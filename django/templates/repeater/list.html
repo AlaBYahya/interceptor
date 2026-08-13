@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Repeater — Interceptor{% endblock %}
+{% block content %}
+<h2>Repeater</h2>
+<p class="muted">Send a request to Repeater from the Traffic history to start editing/replaying it.</p>
+<table>
+    <thead><tr><th>Label</th><th>Method</th><th>URL</th><th>Last status</th><th>Created</th></tr></thead>
+    <tbody>
+        {% for entry in entries %}
+        <tr>
+            <td><a href="{% url 'repeater:detail' entry.pk %}">{{ entry.label|default:"(untitled)" }}</a></td>
+            <td>{{ entry.method }}</td>
+            <td>{{ entry.url|truncatechars:70 }}</td>
+            <td>{{ entry.response_status|default:"—" }}</td>
+            <td class="muted">{{ entry.created_at|date:"H:i:s" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="muted">No repeater entries yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Comparer — Interceptor{% endblock %}
+{% block content %}
+<h2>Comparer</h2>
+<p class="muted">Paste two texts (e.g. two responses) and diff them line-by-line. No state is saved here.</p>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="grid-2">
+        <div class="panel">
+            <h3>A</h3>
+            <textarea name="text_a" rows="14">{{ text_a }}</textarea>
+        </div>
+        <div class="panel">
+            <h3>B</h3>
+            <textarea name="text_b" rows="14">{{ text_b }}</textarea>
+        </div>
+    </div>
+    <p><button type="submit">Compare</button></p>
+</form>
+
+{% if diff_lines %}
+<div class="panel">
+    <h3>Diff</h3>
+    <pre class="raw">{% for line in diff_lines %}{% if line|slice:":1" == "+" %}<span class="diff-add">{{ line }}</span>
+{% elif line|slice:":1" == "-" %}<span class="diff-del">{{ line }}</span>
+{% else %}<span class="muted">{{ line }}</span>
+{% endif %}{% endfor %}</pre>
+</div>
+{% elif text_a or text_b %}
+<p class="muted">No differences (or nothing submitted yet — click Compare).</p>
+{% endif %}
+{% endblock %}

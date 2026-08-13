@@ -1,0 +1,53 @@
+# techdetect: a thin Go wrapper around wappalyzergo (ProjectDiscovery's
+# actively-maintained Go port of the Wappalyzer fingerprint database —
+# thousands of signatures vs. our own handful of curated ones) that reads
+# already-captured response headers/body as JSON on stdin and prints
+# matched technologies to stdout. Pure offline pattern matching, no
+# requests of its own. Built here since there's no prebuilt CLI binary for
+# it (unlike nuclei) — just a library, so this compiles a small wrapper
+# around it. Multi-stage so the Go toolchain doesn't end up in the final
+# image, only the compiled binary.
+FROM golang:1.25-bookworm AS techdetect-builder
+WORKDIR /src
+COPY techdetect/ .
+RUN go mod download && go build -o /techdetect .
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY --from=techdetect-builder /techdetect /usr/local/bin/techdetect
+
+# nmap: apt package, straightforward.
+# searchsploit: the `exploitdb` apt package isn't available on this base
+# image's Debian release, so install it the upstream-recommended way — a
+# shallow clone of the exploitdb repo (~350MB, mostly the exploit archive
+# itself) with the searchsploit script symlinked onto PATH.
+# nuclei: no apt package; fetch the current release's linux_amd64 binary
+# via the GitHub API rather than hardcoding a version, so this doesn't
+# silently go stale as new releases ship.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq-dev gcc nmap git curl ca-certificates unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && git clone --depth 1 https://gitlab.com/exploit-database/exploitdb.git /opt/exploitdb \
+    && ln -s /opt/exploitdb/searchsploit /usr/local/bin/searchsploit \
+    && cp -n /opt/exploitdb/.searchsploit_rc /root/.searchsploit_rc \
+    && NUCLEI_URL=$(curl -s https://api.github.com/repos/projectdiscovery/nuclei/releases/latest \
+         | grep -oP '"browser_download_url":\s*"\K[^"]*linux_amd64\.zip') \
+    && curl -sL -o /tmp/nuclei.zip "$NUCLEI_URL" \
+    && unzip -o /tmp/nuclei.zip -d /usr/local/bin nuclei \
+    && chmod +x /usr/local/bin/nuclei \
+    && rm -f /tmp/nuclei.zip \
+    && nuclei -update-templates
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["celery", "-A", "interceptor", "worker", "-l", "info"]
