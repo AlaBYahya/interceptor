@@ -35,13 +35,17 @@ def export_project(project):
         "project": {
             "name": project.name,
             "description": project.description,
+            "rules": project.rules,
             "capture_mode": project.capture_mode,
         },
-        "scope_entries": [{"pattern": e.pattern, "note": e.note} for e in project.scope_entries.all()],
+        "scope_entries": [
+            {"pattern": e.pattern, "note": e.note, "exclude": e.exclude} for e in project.scope_entries.all()
+        ],
         "custom_headers": [
             {
                 "name": h.name,
                 "value": h.value,
+                "append_to_existing": h.append_to_existing,
                 "apply_to_proxy_traffic": h.apply_to_proxy_traffic,
                 "apply_to_tool_traffic": h.apply_to_tool_traffic,
             }
@@ -191,17 +195,21 @@ def import_project(data):
     project = Project.objects.create(
         name=_unique_name(project_data.get("name", "Imported project")),
         description=project_data.get("description", ""),
+        rules=project_data.get("rules", ""),
         capture_mode=project_data.get("capture_mode", Project.CAPTURE_ALL),
     )
 
     for e in data.get("scope_entries", []):
-        ScopeEntry.objects.create(project=project, pattern=e["pattern"], note=e.get("note", ""))
+        ScopeEntry.objects.create(
+            project=project, pattern=e["pattern"], note=e.get("note", ""), exclude=e.get("exclude", False)
+        )
 
     for h in data.get("custom_headers", []):
         CustomHeader.objects.create(
             project=project,
             name=h["name"],
             value=h["value"],
+            append_to_existing=h.get("append_to_existing", False),
             apply_to_proxy_traffic=h.get("apply_to_proxy_traffic", True),
             apply_to_tool_traffic=h.get("apply_to_tool_traffic", True),
         )

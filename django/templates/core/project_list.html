@@ -6,17 +6,9 @@
 
 <form method="post" class="panel">
     {% csrf_token %}
-    <p><input type="text" name="name" placeholder="New project name" required style="width: 250px;"></p>
-    <p><textarea name="description" placeholder="What is this project? (optional)" rows="2" style="width: 100%; max-width: 500px;"></textarea></p>
-    <p>
-        <label>Scope (one host glob or CIDR per line, optional — can also be added later)</label><br>
-        <textarea name="scope" placeholder="*.example.com&#10;10.0.0.0/8" rows="3" style="width: 100%; max-width: 500px;"></textarea>
-    </p>
-    <p>
-        <label>Custom headers (one <code>Name: Value</code> per line, optional — can also be added later)</label><br>
-        <textarea name="headers" placeholder="X-Bug-Bounty: your-handle" rows="2" style="width: 100%; max-width: 500px;"></textarea>
-    </p>
+    <input type="text" name="name" placeholder="New project name" required>
     <button type="submit">Create</button>
+    <a href="{% url 'core:project_create' %}"><button type="button">New Project (full setup)</button></a>
 </form>
 
 <form method="post" action="{% url 'core:project_import' %}" enctype="multipart/form-data" class="panel">
@@ -27,12 +19,11 @@
 </form>
 
 <table>
-    <thead><tr><th>Name</th><th>Description</th><th>Status</th><th>Created</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Status</th><th>Created</th><th></th></tr></thead>
     <tbody>
         {% for project in projects %}
         <tr>
             <td>{{ project.name }}</td>
-            <td class="muted">{{ project.description }}</td>
             <td>{% if project.is_active %}<span class="badge badge-in-scope">active</span>{% endif %}</td>
             <td class="muted">{{ project.created_at|date:"Y-m-d H:i" }}</td>
             <td>

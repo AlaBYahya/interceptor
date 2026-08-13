@@ -20,24 +20,35 @@ def extract_host(host_or_url: str) -> str:
     return host_or_url.split("/")[0].split(":")[0]
 
 
+def _pattern_matches(pattern: str, host: str) -> bool:
+    if fnmatch.fnmatch(host.lower(), pattern.lower()):
+        return True
+    try:
+        network = ipaddress.ip_network(pattern, strict=False)
+        addr = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return addr in network
+
+
 def is_in_scope(project, host_or_url: str) -> bool:
-    """True if host_or_url matches any of the project's scope entries."""
+    """True if host_or_url matches an in-scope pattern and no exclusion.
+
+    Exclusions always win, even over a broader in-scope wildcard that also
+    matches — this is how a program's "*.example.com except www/support"
+    carve-outs get enforced.
+    """
     host = extract_host(host_or_url)
     if not host:
         return False
 
-    patterns = project.scope_entries.values_list("pattern", flat=True)
-    for pattern in patterns:
-        if fnmatch.fnmatch(host.lower(), pattern.lower()):
-            return True
-        try:
-            network = ipaddress.ip_network(pattern, strict=False)
-            addr = ipaddress.ip_address(host)
-        except ValueError:
-            continue
-        if addr in network:
-            return True
-    return False
+    entries = project.scope_entries.values_list("pattern", "exclude")
+    includes = [pattern for pattern, exclude in entries if not exclude]
+    excludes = [pattern for pattern, exclude in entries if exclude]
+
+    if any(_pattern_matches(pattern, host) for pattern in excludes):
+        return False
+    return any(_pattern_matches(pattern, host) for pattern in includes)
 
 
 class OutOfScopeError(Exception):

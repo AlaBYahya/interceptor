@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}New Project — Interceptor{% endblock %}
+{% block content %}
+<h2>New Project</h2>
+<p class="muted">Set up a project the way a bug-bounty platform lays out a program page — info, scope, rules, and required headers all in one place. Everything here except the name is optional and can be edited later from the Scope/Headers pages.</p>
+
+<form method="post">
+    {% csrf_token %}
+
+    <div class="panel">
+        <h3>Program info</h3>
+        <p><input type="text" name="name" placeholder="Project name" required style="width: 100%; max-width: 400px;"></p>
+        <p>
+            <label class="muted">Description</label><br>
+            <textarea name="description" placeholder="What is this program/target? Link to the program page, etc." rows="3"></textarea>
+        </p>
+    </div>
+
+    <div class="panel">
+        <h3>Scope</h3>
+        <div class="grid-2">
+            <div>
+                <label class="muted">In scope — one host glob or CIDR per line</label><br>
+                <textarea name="in_scope" placeholder="app.example.com&#10;*.example.com&#10;10.0.0.0/8" rows="5"></textarea>
+            </div>
+            <div>
+                <label class="muted">Out of scope / exclusions — one per line</label><br>
+                <textarea name="out_of_scope" placeholder="www.example.com&#10;support.example.com" rows="5"></textarea>
+                <p class="muted">An exclusion always wins, even if it also matches a broader in-scope wildcard (e.g. excluding <code>support.example.com</code> while <code>*.example.com</code> is in scope).</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h3>Rules</h3>
+        <textarea name="rules" placeholder="Testing hours, rate limits, disallowed actions (DoS, data exfiltration...), disclosure policy, etc." rows="4"></textarea>
+    </div>
+
+    <div class="panel">
+        <h3>Custom headers</h3>
+        <p class="muted">Injected into outbound requests. "Append to existing" adds the value onto a header that's already set (e.g. a required suffix on User-Agent) instead of only adding it when missing. Need more than three? Add the rest afterward from the Headers page.</p>
+        {% for i in "123" %}
+        <p style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
+            <input type="text" name="header_name_{{ i }}" placeholder="Header name (e.g. User-Agent)" style="width: 200px;">
+            <input type="text" name="header_value_{{ i }}" placeholder="Value" style="width: 220px;">
+            <label style="display:inline-flex;align-items:center;gap:0.3rem;">
+                <input type="checkbox" name="header_append_{{ i }}"> append to existing
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:0.3rem;">
+                <input type="checkbox" name="header_proxy_{{ i }}" checked> proxy traffic
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:0.3rem;">
+                <input type="checkbox" name="header_tool_{{ i }}" checked> repeater/intruder/scanner
+            </label>
+        </p>
+        {% endfor %}
+    </div>
+
+    <button type="submit">Create project</button>
+    <a href="{% url 'core:project_list' %}"><button type="button">Cancel</button></a>
+</form>
+{% endblock %}

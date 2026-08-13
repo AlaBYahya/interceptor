@@ -67,10 +67,14 @@ class IngestAddon:
             _headers_cache["fetching"] = True
             asyncio.get_event_loop().run_in_executor(None, _refresh_headers_cache)
 
-        existing_lower = {k.lower() for k in flow.request.headers.keys()}
+        existing_lower = {k.lower(): k for k in flow.request.headers.keys()}
         for header in _headers_cache["headers"]:
-            if header["name"].lower() not in existing_lower:
+            name_lower = header["name"].lower()
+            if name_lower not in existing_lower:
                 flow.request.headers[header["name"]] = header["value"]
+            elif header.get("append_to_existing"):
+                existing_key = existing_lower[name_lower]
+                flow.request.headers[existing_key] = flow.request.headers[existing_key] + header["value"]
 
     def response(self, flow: http.HTTPFlow) -> None:
         req, resp = flow.request, flow.response

@@ -9,6 +9,9 @@
     <input type="text" name="name" placeholder="Header name (e.g. X-Bug-Bounty)" required style="width: 220px;">
     <input type="text" name="value" placeholder="Value" style="width: 220px;">
     <label style="display:inline-flex;align-items:center;gap:0.3rem;">
+        <input type="checkbox" name="append_to_existing"> append to existing value
+    </label>
+    <label style="display:inline-flex;align-items:center;gap:0.3rem;">
         <input type="checkbox" name="apply_to_proxy_traffic" checked> proxy traffic
     </label>
     <label style="display:inline-flex;align-items:center;gap:0.3rem;">
@@ -16,14 +19,16 @@
     </label>
     <button type="submit">Add</button>
 </form>
+<p class="muted">"Append to existing value" adds this value onto the end of a header that's already set (e.g. a required suffix on User-Agent) instead of only adding it when the header is missing — useful since User-Agent is essentially always already set.</p>
 
 <table>
-    <thead><tr><th>Name</th><th>Value</th><th>Proxy traffic</th><th>Tool traffic</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Value</th><th>Mode</th><th>Proxy traffic</th><th>Tool traffic</th><th></th></tr></thead>
     <tbody>
         {% for header in project.custom_headers.all %}
         <tr>
             <td>{{ header.name }}</td>
             <td class="muted">{{ header.value }}</td>
+            <td class="muted">{% if header.append_to_existing %}append{% else %}set if missing{% endif %}</td>
             <td>{% if header.apply_to_proxy_traffic %}yes{% else %}—{% endif %}</td>
             <td>{% if header.apply_to_tool_traffic %}yes{% else %}—{% endif %}</td>
             <td>
@@ -34,7 +39,7 @@
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="5" class="muted">No custom headers yet.</td></tr>
+        <tr><td colspan="6" class="muted">No custom headers yet.</td></tr>
         {% endfor %}
     </tbody>
 </table>

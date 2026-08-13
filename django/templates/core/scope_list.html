@@ -22,16 +22,20 @@
     {% csrf_token %}
     <input type="text" name="pattern" placeholder="*.example.com or 10.0.0.0/8" required style="width: 250px;">
     <input type="text" name="note" placeholder="note (optional)">
+    <label style="display:inline-flex;align-items:center;gap:0.3rem;">
+        <input type="checkbox" name="exclude"> exclude (out of scope, overrides a matching pattern above)
+    </label>
     <button type="submit">Add</button>
 </form>
 
 <table>
-    <thead><tr><th>Pattern</th><th>Note</th><th>Added</th><th></th></tr></thead>
+    <thead><tr><th>Pattern</th><th>Note</th><th></th><th>Added</th><th></th></tr></thead>
     <tbody>
         {% for entry in project.scope_entries.all %}
         <tr>
             <td>{{ entry.pattern }}</td>
             <td class="muted">{{ entry.note }}</td>
+            <td>{% if entry.exclude %}<span class="badge badge-out-of-scope">exclude</span>{% endif %}</td>
             <td class="muted">{{ entry.created_at|date:"Y-m-d H:i" }}</td>
             <td>
                 <form class="inline" method="post" action="{% url 'core:scope_delete' entry.pk %}">
@@ -41,7 +45,7 @@
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" class="muted">No scope entries yet — nothing is authorized to send to until you add one.</td></tr>
+        <tr><td colspan="5" class="muted">No scope entries yet — nothing is authorized to send to until you add one.</td></tr>
         {% endfor %}
     </tbody>
 </table>

@@ -3,20 +3,49 @@ user's behalf (Repeater, Intruder, Active Scanner). Every call goes through
 the scope check first — see core/scope.py.
 """
 
+import threading
+import time
+
 import httpx
 
 from .scope import OutOfScopeError, is_in_scope
+
+# Neither the active scanner's per-parameter probe loops nor Intruder's
+# payload sweep otherwise pace themselves at all — without this they'd fire
+# requests back-to-back, which blows past typical bug-bounty rate-limit
+# rules (e.g. "max 1 request/second") the moment either is pointed at a real
+# program. One conservative global floor here, matching the crawler's own
+# default pace, covers every caller through this single choke point instead
+# of each one needing its own throttling.
+_MIN_REQUEST_INTERVAL_SECONDS = 1.0
+_throttle_lock = threading.Lock()
+_last_send_at = 0.0
+
+
+def _throttle():
+    global _last_send_at
+    with _throttle_lock:
+        wait = _MIN_REQUEST_INTERVAL_SECONDS - (time.monotonic() - _last_send_at)
+        if wait > 0:
+            time.sleep(wait)
+        _last_send_at = time.monotonic()
 
 
 def _with_project_headers(project, headers):
     """Layer in the project's tool-scoped custom headers (e.g. a bug-bounty
     program's required identification header) without overwriting anything
-    already explicitly set on this request."""
+    already explicitly set on this request, unless the header is marked
+    `append_to_existing` (e.g. a UA suffix that must be appended, not
+    replace the real User-Agent already on the request)."""
     merged = dict(headers or {})
-    existing_lower = {k.lower() for k in merged}
+    existing_lower = {k.lower(): k for k in merged}
     for header in project.custom_headers.filter(apply_to_tool_traffic=True):
-        if header.name.lower() not in existing_lower:
+        name_lower = header.name.lower()
+        if name_lower not in existing_lower:
             merged[header.name] = header.value
+        elif header.append_to_existing:
+            existing_key = existing_lower[name_lower]
+            merged[existing_key] = merged[existing_key] + header.value
     return merged
 
 
@@ -39,6 +68,8 @@ def send_request(project, method, url, headers=None, body=None, timeout=15.0):
     content = body.encode() if isinstance(body, str) else (body or b"")
     headers = _with_project_headers(project, headers)
     headers = recalculate_content_length(headers, content)
+
+    _throttle()
 
     # This is a security-testing tool: it's expected to hit self-signed/
     # invalid certs on test targets, so certificate verification is

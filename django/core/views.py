@@ -16,23 +16,9 @@ from .project_transfer import export_project, import_project
 def project_list(request):
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
-        description = request.POST.get("description", "").strip()
-        scope_text = request.POST.get("scope", "")
-        headers_text = request.POST.get("headers", "")
         if name:
-            project, created = Project.objects.get_or_create(
-                name=name, defaults={"description": description}
-            )
+            project, created = Project.objects.get_or_create(name=name)
             if created:
-                for pattern in scope_text.splitlines():
-                    pattern = pattern.strip()
-                    if pattern:
-                        ScopeEntry.objects.create(project=project, pattern=pattern)
-                for line in headers_text.splitlines():
-                    header_name, _, value = line.partition(":")
-                    header_name = header_name.strip()
-                    if header_name:
-                        CustomHeader.objects.create(project=project, name=header_name, value=value.strip())
                 messages.success(request, f"Created project '{name}'.")
             else:
                 messages.info(request, f"Project '{name}' already exists.")
@@ -40,6 +26,53 @@ def project_list(request):
 
     projects = Project.objects.all()
     return render(request, "core/project_list.html", {"projects": projects})
+
+
+@login_required
+def project_create(request):
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        if not name:
+            messages.error(request, "Project name is required.")
+            return redirect("core:project_create")
+
+        project, created = Project.objects.get_or_create(
+            name=name,
+            defaults={
+                "description": request.POST.get("description", "").strip(),
+                "rules": request.POST.get("rules", "").strip(),
+            },
+        )
+        if not created:
+            messages.info(request, f"Project '{name}' already exists.")
+            return redirect("core:project_list")
+
+        for pattern in request.POST.get("in_scope", "").splitlines():
+            pattern = pattern.strip()
+            if pattern:
+                ScopeEntry.objects.create(project=project, pattern=pattern, exclude=False)
+        for pattern in request.POST.get("out_of_scope", "").splitlines():
+            pattern = pattern.strip()
+            if pattern:
+                ScopeEntry.objects.create(project=project, pattern=pattern, exclude=True)
+
+        for i in range(1, 4):
+            header_name = request.POST.get(f"header_name_{i}", "").strip()
+            if not header_name:
+                continue
+            CustomHeader.objects.create(
+                project=project,
+                name=header_name,
+                value=request.POST.get(f"header_value_{i}", ""),
+                append_to_existing=request.POST.get(f"header_append_{i}") == "on",
+                apply_to_proxy_traffic=request.POST.get(f"header_proxy_{i}") == "on",
+                apply_to_tool_traffic=request.POST.get(f"header_tool_{i}") == "on",
+            )
+
+        messages.success(request, f"Created project '{name}'.")
+        return redirect("core:project_list")
+
+    return render(request, "core/project_create.html")
 
 
 @login_required
@@ -101,9 +134,10 @@ def scope_list(request):
     if request.method == "POST":
         pattern = request.POST.get("pattern", "").strip()
         note = request.POST.get("note", "").strip()
+        exclude = request.POST.get("exclude") == "on"
         if pattern:
-            ScopeEntry.objects.create(project=project, pattern=pattern, note=note)
-            messages.success(request, f"Added scope entry '{pattern}'.")
+            ScopeEntry.objects.create(project=project, pattern=pattern, note=note, exclude=exclude)
+            messages.success(request, f"Added {'exclusion' if exclude else 'scope entry'} '{pattern}'.")
         return redirect("core:scope_list")
 
     return render(request, "core/scope_list.html", {"project": project})
@@ -135,6 +169,7 @@ def header_list(request):
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         value = request.POST.get("value", "")
+        append_to_existing = request.POST.get("append_to_existing") == "on"
         apply_to_proxy_traffic = request.POST.get("apply_to_proxy_traffic") == "on"
         apply_to_tool_traffic = request.POST.get("apply_to_tool_traffic") == "on"
         if name:
@@ -142,6 +177,7 @@ def header_list(request):
                 project=project,
                 name=name,
                 value=value,
+                append_to_existing=append_to_existing,
                 apply_to_proxy_traffic=apply_to_proxy_traffic,
                 apply_to_tool_traffic=apply_to_tool_traffic,
             )
@@ -170,6 +206,8 @@ def api_custom_headers(request):
 
     project = Project.get_active()
     headers = list(
-        project.custom_headers.filter(apply_to_proxy_traffic=True).values("name", "value")
+        project.custom_headers.filter(apply_to_proxy_traffic=True).values(
+            "name", "value", "append_to_existing"
+        )
     )
     return JsonResponse({"headers": headers})
