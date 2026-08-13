@@ -16,9 +16,23 @@ from .project_transfer import export_project, import_project
 def project_list(request):
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
+        description = request.POST.get("description", "").strip()
+        scope_text = request.POST.get("scope", "")
+        headers_text = request.POST.get("headers", "")
         if name:
-            project, created = Project.objects.get_or_create(name=name)
+            project, created = Project.objects.get_or_create(
+                name=name, defaults={"description": description}
+            )
             if created:
+                for pattern in scope_text.splitlines():
+                    pattern = pattern.strip()
+                    if pattern:
+                        ScopeEntry.objects.create(project=project, pattern=pattern)
+                for line in headers_text.splitlines():
+                    header_name, _, value = line.partition(":")
+                    header_name = header_name.strip()
+                    if header_name:
+                        CustomHeader.objects.create(project=project, name=header_name, value=value.strip())
                 messages.success(request, f"Created project '{name}'.")
             else:
                 messages.info(request, f"Project '{name}' already exists.")

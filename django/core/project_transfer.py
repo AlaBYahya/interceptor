@@ -34,6 +34,7 @@ def export_project(project):
         "interceptor_export_version": EXPORT_VERSION,
         "project": {
             "name": project.name,
+            "description": project.description,
             "capture_mode": project.capture_mode,
         },
         "scope_entries": [{"pattern": e.pattern, "note": e.note} for e in project.scope_entries.all()],
@@ -189,6 +190,7 @@ def import_project(data):
     project_data = data.get("project", {})
     project = Project.objects.create(
         name=_unique_name(project_data.get("name", "Imported project")),
+        description=project_data.get("description", ""),
         capture_mode=project_data.get("capture_mode", Project.CAPTURE_ALL),
     )
 

@@ -17,6 +17,7 @@ class Project(models.Model):
     ]
 
     name = models.CharField(max_length=200, unique=True)
+    description = models.TextField(blank=True)
     is_active = models.BooleanField(default=False)
     capture_mode = models.CharField(max_length=10, choices=CAPTURE_MODE_CHOICES, default=CAPTURE_ALL)
     created_at = models.DateTimeField(auto_now_add=True)
