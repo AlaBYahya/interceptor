@@ -65,7 +65,7 @@
         header a.brand img { display: block; }
         header nav { display: flex; gap: 1rem; flex: 1; }
         header nav a.active { color: var(--link); border-bottom: 2px solid var(--link); padding-bottom: 0.15rem; }
-        header .project { margin-left: auto; font-size: 0.85rem; color: var(--text-muted); }
+        header .project { margin-left: auto; font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
         #theme-toggle { background: none; border: 1px solid var(--border); color: var(--text-dim); border-radius: 4px; padding: 0.25rem 0.5rem; font-size: 0.85rem; cursor: pointer; }
         #theme-toggle:hover { border-color: var(--link); }
         main { padding: 1.2rem; max-width: 1200px; margin: 0 auto; }
@@ -138,7 +138,7 @@
         <a href="{% url 'core:header_list' %}">Headers</a>
         <a href="{% url 'core:notes_list' %}">Notes</a>
     </nav>
-    {% if active_project %}<span class="project">project: <strong>{{ active_project.name }}</strong></span>{% endif %}
+    {% if active_project %}<span class="project" title="{{ active_project.name }}">project: <strong>{{ active_project.name }}</strong></span>{% endif %}
     <button type="button" id="theme-toggle" title="Toggle light/dark theme">&#9680;</button>
     {% if user.is_authenticated %}<a href="{% url 'logout' %}">Log out</a>{% endif %}
 </header>
