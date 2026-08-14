@@ -82,6 +82,16 @@ See each feature's code/templates for implementation details.
 3. Browse to something in scope — it should show up in **Traffic** within a
    couple seconds.
 
+Not just a browser — any tool that supports an HTTP(S) proxy (curl, a
+custom scraper, another pentesting tool) works the same way: point it at
+`127.0.0.1:8080` with the CA cert trusted, and its traffic gets captured,
+scope-checked, and passively scanned exactly like proxied browser traffic:
+
+```bash
+docker compose cp proxy:/home/mitmproxy/.mitmproxy/mitmproxy-ca-cert.pem .
+curl -x http://127.0.0.1:8080 --cacert mitmproxy-ca-cert.pem https://example.com/
+```
+
 ### Custom headers (bug-bounty program identification, etc.)
 
 Go to **Headers** in the nav, add a name/value, and choose whether it
