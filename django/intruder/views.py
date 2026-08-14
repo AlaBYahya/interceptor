@@ -2,7 +2,7 @@ from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.models import Project
@@ -25,7 +25,12 @@ RESULT_SORT_FIELDS = {
 @login_required
 def list_view(request):
     project = Project.get_active()
-    attacks = IntruderAttack.objects.filter(project=project)
+    # annotate rather than let the template call attack.results.count() per
+    # row - that's a separate COUNT(*) query per attack otherwise, the same
+    # N+1 shape fixed elsewhere this session (verified: 6 attacks -> 9
+    # queries before this fix). Can't be named _results_count - Django
+    # templates reject any variable/attribute starting with an underscore.
+    attacks = IntruderAttack.objects.filter(project=project).annotate(results_count=Count("results"))
     return render(request, "intruder/list.html", {"attacks": attacks})
 
 

@@ -13,7 +13,7 @@
             <td>{{ attack.method }}</td>
             <td>{{ attack.url|truncatechars:70 }}</td>
             <td><span class="badge badge-info">{{ attack.status }}</span></td>
-            <td class="muted">{{ attack.results.count }}</td>
+            <td class="muted">{{ attack.results_count }}</td>
             <td class="muted">{{ attack.created_at|date:"H:i:s" }}</td>
         </tr>
         {% empty %}
