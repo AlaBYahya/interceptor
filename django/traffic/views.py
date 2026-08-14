@@ -5,6 +5,7 @@ from urllib.parse import urlencode, urlparse
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models.functions import Length
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -114,19 +115,38 @@ def history(request):
         order_field if direction == "asc" else f"-{order_field}"
     )
 
-    flows = list(flows[:500])
+    per_page = request.GET.get("per_page", "50")
+    if per_page not in ("25", "50", "100"):
+        per_page = "50"
+    paginator = Paginator(flows, int(per_page))
+    page_obj = paginator.get_page(request.GET.get("page"))
+    flows = list(page_obj.object_list)
 
     # Column header links: preserve the current filters, flip direction if
-    # already sorted by that column, else default to ascending.
+    # already sorted by that column, else default to ascending. Changing
+    # sort intentionally drops back to page 1 rather than carrying a page
+    # number that may not exist under the new ordering's row count.
     base_params = {k: v for k, v in {"q": q, "method": method, "status": status, "review_status": review_status}.items() if v}
     if scope_only:
         base_params["scope_only"] = "1"
+    if per_page != "50":
+        base_params["per_page"] = per_page
 
     sort_urls, sort_arrows = {}, {}
     for col in SORT_FIELDS:
         next_dir = "desc" if (sort == col and direction == "asc") else "asc"
         sort_urls[col] = "?" + urlencode({**base_params, "sort": col, "dir": next_dir})
         sort_arrows[col] = ("▲" if direction == "asc" else "▼") if sort == col else ""
+
+    # Pagination links preserve every current filter/sort/per_page choice,
+    # only the page number changes.
+    page_params = {**base_params, "sort": sort, "dir": direction}
+    prev_url = "?" + urlencode({**page_params, "page": page_obj.previous_page_number()}) if page_obj.has_previous() else None
+    next_url = "?" + urlencode({**page_params, "page": page_obj.next_page_number()}) if page_obj.has_next() else None
+    per_page_urls = {
+        n: "?" + urlencode({**{k: v for k, v in page_params.items() if k != "per_page"}, "per_page": n})
+        for n in ("25", "50", "100")
+    }
 
     # Attach each flow's highest-severity finding so history rows can be
     # highlighted (out-of-line import to avoid a circular import at app-load
@@ -151,6 +171,11 @@ def history(request):
             "filters": {"q": q, "method": method, "status": status, "scope_only": scope_only, "review_status": review_status},
             "sort_urls": sort_urls,
             "sort_arrows": sort_arrows,
+            "page_obj": page_obj,
+            "prev_url": prev_url,
+            "next_url": next_url,
+            "per_page": per_page,
+            "per_page_urls": per_page_urls,
         },
     )
 

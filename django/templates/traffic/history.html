@@ -4,7 +4,7 @@
 {% block content %}
 <h2>HTTP History</h2>
 {% if flows %}
-<form method="post" action="{% url 'traffic:history_clear' %}" onsubmit="return confirm('Delete all {{ flows|length }}+ captured requests for this project? This cannot be undone.');" style="margin-bottom: 0.6rem;">
+<form method="post" action="{% url 'traffic:history_clear' %}" onsubmit="return confirm('Delete all {{ page_obj.paginator.count }} captured requests for this project? This cannot be undone.');" style="margin-bottom: 0.6rem;">
     {% csrf_token %}
     <button type="submit">Clear all history</button>
 </form>
@@ -35,6 +35,13 @@
     <button type="submit">Filter</button>
     <a href="{% url 'traffic:history' %}">clear</a>
 </form>
+
+<p class="muted">
+    {{ page_obj.paginator.count }} request{{ page_obj.paginator.count|pluralize }} —
+    page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} —
+    per page:
+    {% for n, url in per_page_urls.items %}{% if n == per_page %}<strong>{{ n }}</strong>{% else %}<a href="{{ url }}">{{ n }}</a>{% endif %}{% if not forloop.last %} / {% endif %}{% endfor %}
+</p>
 
 <form id="bulk-delete-form" method="post" action="{% url 'traffic:flow_delete_selected' %}" onsubmit="return confirm('Delete the selected requests?');">
     {% csrf_token %}
@@ -86,4 +93,9 @@
         {% endfor %}
     </tbody>
 </table>
+<p class="filters">
+    {% if prev_url %}<a href="{{ prev_url }}"><button type="button">&laquo; Previous</button></a>{% else %}<button type="button" disabled>&laquo; Previous</button>{% endif %}
+    <span class="muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if next_url %}<a href="{{ next_url }}"><button type="button">Next &raquo;</button></a>{% else %}<button type="button" disabled>Next &raquo;</button>{% endif %}
+</p>
 {% endblock %}
