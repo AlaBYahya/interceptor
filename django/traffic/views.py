@@ -267,10 +267,11 @@ def _new_tree_node():
     }
 
 
-def _finalize_tree_node(node, name=None, parent_path=""):
+def _finalize_tree_node(node, name=None, parent_path="", host=""):
     full_path = "/" if name is None else f"{parent_path.rstrip('/')}/{name}"
     children = [
-        _finalize_tree_node(child, child_name, full_path) for child_name, child in sorted(node["children"].items())
+        _finalize_tree_node(child, child_name, full_path, host)
+        for child_name, child in sorted(node["children"].items())
     ]
 
     from scanner.models import SEVERITY_ORDER
@@ -293,6 +294,7 @@ def _finalize_tree_node(node, name=None, parent_path=""):
     return {
         "name": name,
         "full_path": full_path,
+        "full_url": f"https://{host}{full_path}",
         "is_leaf": node["is_leaf"],
         "method_entries": method_entries,
         "statuses": sorted(node["statuses"]),
@@ -404,7 +406,9 @@ def sitemap(request):
             node["severity"] = node_severity.get((host, path))
             node["method_flow_ids"] = data["method_flow_ids"]
             node["method_counts"] = data["method_counts"]
-        hosts.append({"host": host, "root": _finalize_tree_node(root), "technologies": sorted(tech_by_host[host])})
+        hosts.append(
+            {"host": host, "root": _finalize_tree_node(root, host=host), "technologies": sorted(tech_by_host[host])}
+        )
 
     selected_flow = None
     selected_flow_id = request.GET.get("flow")

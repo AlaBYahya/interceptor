@@ -9,6 +9,8 @@ in the site map.
 import re
 from urllib.parse import urlparse
 
+from core.scope import is_in_scope
+
 from .models import DiscoveredEndpoint
 
 _PATH_RE = re.compile(
@@ -61,6 +63,13 @@ def maybe_extract_endpoints(flow):
             host, path = flow.host, candidate
 
         if not host:
+            continue
+        # Root-relative paths inherit flow.host, already in-scope by
+        # construction (the flow itself was only saved if in-scope). But
+        # absolute-URL matches can point anywhere a script happens to
+        # reference — CDNs, doc sites, icon packs — which is exactly the
+        # out-of-scope noise this is meant to filter out, not surface.
+        if not is_in_scope(flow.project, host):
             continue
 
         DiscoveredEndpoint.objects.get_or_create(

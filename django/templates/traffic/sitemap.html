@@ -27,6 +27,7 @@
                 <li>
                     {% if host.root.own_severity %}<span class="badge badge-{{ host.root.own_severity }}">{{ host.root.own_severity }}</span>{% endif %}
                     / {% for me in host.root.method_entries %}<a class="badge badge-info" href="{% url 'traffic:sitemap' %}?flow={{ me.flow_id }}">{{ me.method }}</a>{% if me.count > 1 %}<a class="muted" href="{% url 'traffic:history' %}?q={{ host.host|urlencode }}&amp;method={{ me.method }}">(+{{ me.count }})</a>{% endif %}{% endfor %}
+                    {% if host.root.discovered_only %}<span class="badge badge-medium">not yet requested</span> <a class="muted" href="{% url 'repeater:new_from_url' %}?url={{ host.root.full_url|urlencode }}">send to Repeater</a>{% endif %}
                 </li>
                 {% endif %}
                 {% for child in host.root.children %}

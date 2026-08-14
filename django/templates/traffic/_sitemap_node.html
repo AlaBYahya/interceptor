@@ -8,7 +8,7 @@
             <a class="muted" href="{% url 'traffic:history' %}?q={{ node.full_path|urlencode }}">view all</a>
             {% if node.is_leaf %}
                 {% for me in node.method_entries %}<a class="badge badge-info" href="{% url 'traffic:sitemap' %}?flow={{ me.flow_id }}">{{ me.method }}</a>{% if me.count > 1 %}<a class="muted" href="{% url 'traffic:history' %}?q={{ node.full_path|urlencode }}&amp;method={{ me.method }}">(+{{ me.count }})</a>{% endif %}{% endfor %}
-                {% if node.discovered_only %}<span class="badge badge-medium">not yet requested</span>{% endif %}
+                {% if node.discovered_only %}<span class="badge badge-medium">not yet requested</span> <a class="muted" href="{% url 'repeater:new_from_url' %}?url={{ node.full_url|urlencode }}">send to Repeater</a>{% endif %}
             {% endif %}
         </summary>
         <ul>

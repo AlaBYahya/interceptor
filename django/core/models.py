@@ -20,7 +20,12 @@ class Project(models.Model):
     description = models.TextField(blank=True)
     rules = models.TextField(blank=True, help_text="Testing rules/policy: hours, rate limits, disallowed actions, disclosure terms, etc.")
     is_active = models.BooleanField(default=False)
-    capture_mode = models.CharField(max_length=10, choices=CAPTURE_MODE_CHOICES, default=CAPTURE_ALL)
+    # Safe by default: a new project only saves in-scope traffic until you
+    # explicitly widen it. "All" is easy to forget to narrow back down, and
+    # a project left on it quietly accumulates third-party noise (ad-tech,
+    # CDNs, embedded maps/consent scripts) into Traffic/Site Map/Findings
+    # for as long as nobody notices.
+    capture_mode = models.CharField(max_length=10, choices=CAPTURE_MODE_CHOICES, default=CAPTURE_IN_SCOPE_ONLY)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

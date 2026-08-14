@@ -30,6 +30,30 @@ def new_from_flow(request, flow_pk):
 
 
 @login_required
+def new_from_url(request):
+    """For a Site Map node that's only ever been discovered (parsed out of
+    JS), not actually requested — there's no source Flow to seed a Repeater
+    entry from, just a URL, so this is the blank-slate equivalent of
+    new_from_flow."""
+    project = Project.get_active()
+    url = request.GET.get("url", "").strip()
+    if not url:
+        messages.error(request, "No URL given.")
+        return redirect("traffic:sitemap")
+
+    entry = RepeaterEntry.objects.create(
+        project=project,
+        source_flow=None,
+        label=f"GET {url}",
+        method="GET",
+        url=url,
+        headers={},
+        body="",
+    )
+    return redirect("repeater:detail", pk=entry.pk)
+
+
+@login_required
 def list_view(request):
     project = Project.get_active()
     entries = RepeaterEntry.objects.filter(project=project)
