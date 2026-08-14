@@ -26,12 +26,23 @@
         <option value="confirmed" {% if filters.review_status == "confirmed" %}selected{% endif %}>confirmed</option>
         <option value="false_positive" {% if filters.review_status == "false_positive" %}selected{% endif %}>false positive</option>
     </select>
+    <label style="display:flex;align-items:center;gap:0.3rem;">
+        <input type="checkbox" name="scope_only" value="1" {% if filters.scope_only %}checked{% endif %}>
+        in-scope only
+    </label>
     <button type="submit">Filter</button>
     <a href="{% url 'scanner:findings' %}">clear</a>
     <span class="muted">|</span>
-    <a href="{% url 'scanner:export_findings' %}?format=csv&severity={{ filters.severity }}&source={{ filters.source }}">Export CSV</a>
-    <a href="{% url 'scanner:export_findings' %}?format=markdown&severity={{ filters.severity }}&source={{ filters.source }}">Export Markdown</a>
+    <a href="{% url 'scanner:export_findings' %}?format=csv&severity={{ filters.severity }}&source={{ filters.source }}{% if filters.scope_only %}&scope_only=1{% endif %}">Export CSV</a>
+    <a href="{% url 'scanner:export_findings' %}?format=markdown&severity={{ filters.severity }}&source={{ filters.source }}{% if filters.scope_only %}&scope_only=1{% endif %}">Export Markdown</a>
 </form>
+
+<p class="muted">
+    {{ page_obj.paginator.count }} finding{{ page_obj.paginator.count|pluralize }} —
+    page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} —
+    per page:
+    {% for n, url in per_page_urls.items %}{% if n == per_page %}<strong>{{ n }}</strong>{% else %}<a href="{{ url }}">{{ n }}</a>{% endif %}{% if not forloop.last %} / {% endif %}{% endfor %}
+</p>
 
 <table>
     <thead><tr><th>Severity</th><th>Title</th><th>Source</th><th>Flow</th><th>Found</th><th>Triage</th></tr></thead>
@@ -60,4 +71,9 @@
         {% endfor %}
     </tbody>
 </table>
+<p class="filters">
+    {% if prev_url %}<a href="{{ prev_url }}"><button type="button">&laquo; Previous</button></a>{% else %}<button type="button" disabled>&laquo; Previous</button>{% endif %}
+    <span class="muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if next_url %}<a href="{{ next_url }}"><button type="button">Next &raquo;</button></a>{% else %}<button type="button" disabled>Next &raquo;</button>{% endif %}
+</p>
 {% endblock %}

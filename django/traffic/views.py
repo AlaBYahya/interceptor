@@ -321,6 +321,7 @@ def sitemap(request):
     from scanner.models import SEVERITY_ORDER, Finding
 
     project = Project.get_active()
+    scope_only = request.GET.get("scope_only") == "1"
     flat = defaultdict(
         lambda: defaultdict(
             lambda: {"methods": set(), "statuses": set(), "method_flow_ids": {}, "method_counts": {}}
@@ -332,6 +333,8 @@ def sitemap(request):
     for flow_id, host, url, method, status in Flow.objects.filter(project=project).values_list(
         "id", "host", "url", "method", "status_code"
     ):
+        if scope_only and not is_in_scope(project, host):
+            continue
         path = urlparse(url).path or "/"
         node = flat[host][path]
         node["methods"].add(method)
@@ -343,6 +346,8 @@ def sitemap(request):
     observed = {(host, path) for host, paths in flat.items() for path in paths}
 
     for host, path in DiscoveredEndpoint.objects.filter(project=project).values_list("host", "path"):
+        if scope_only and not is_in_scope(project, host):
+            continue
         flat[host][path]  # touch to ensure the key exists even with no methods yet
 
     # Highest finding severity per (host, path), for the leaf's own badge.
@@ -351,6 +356,8 @@ def sitemap(request):
         "flow__host", "flow__url", "severity"
     )
     for host, url, severity in finding_rows:
+        if scope_only and not is_in_scope(project, host):
+            continue
         key = (host, urlparse(url).path or "/")
         current = node_severity.get(key)
         if current is None or SEVERITY_ORDER[severity] > SEVERITY_ORDER[current]:
@@ -364,6 +371,8 @@ def sitemap(request):
     for host, severity in Finding.objects.filter(project=project, flow__isnull=True).exclude(host="").values_list(
         "host", "severity"
     ):
+        if scope_only and not is_in_scope(project, host):
+            continue
         current = host_severity.get(host)
         if current is None or SEVERITY_ORDER[severity] > SEVERITY_ORDER[current]:
             host_severity[host] = severity
@@ -375,6 +384,8 @@ def sitemap(request):
 
     tech_by_host = defaultdict(list)
     for host, name, version in Technology.objects.filter(project=project).values_list("host", "name", "version"):
+        if scope_only and not is_in_scope(project, host):
+            continue
         tech_by_host[host].append(f"{name} {version}".strip())
 
     hosts = []
@@ -400,4 +411,6 @@ def sitemap(request):
     if selected_flow_id:
         selected_flow = Flow.objects.filter(project=project, pk=selected_flow_id).first()
 
-    return render(request, "traffic/sitemap.html", {"hosts": hosts, "selected_flow": selected_flow})
+    return render(
+        request, "traffic/sitemap.html", {"hosts": hosts, "selected_flow": selected_flow, "scope_only": scope_only}
+    )

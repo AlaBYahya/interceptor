@@ -5,6 +5,13 @@
 <h2>Site Map</h2>
 <p class="muted">Folder-style tree of every host/path seen in captured traffic, plus paths only discovered by parsing JavaScript (marked "not yet requested"). Risk badges roll up from Findings on requests under each node — same idea as ZAP's Sites tree. Click a folder to collapse/expand it; click a method badge to view that request/response on the right, or "view all"/"(+N)" to jump to the full list in Traffic history.</p>
 
+<form class="filters" method="get">
+    <label style="display:flex;align-items:center;gap:0.3rem;">
+        <input type="checkbox" name="scope_only" value="1" {% if scope_only %}checked{% endif %} onchange="this.form.submit()">
+        in-scope only
+    </label>
+</form>
+
 <div class="split-view">
     <div>
         {% for host in hosts %}
