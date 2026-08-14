@@ -9,8 +9,8 @@ Docker instead of the Java desktop app. Built for authorized testing
 ## What's working now
 
 - **Intercepting proxy + HTTP history** — mitmproxy captures every request/
-  response into Django. Search, filter, and sort history; mark requests
-  Tested/Interesting with notes; scope-aware capture mode.
+  response into Django. Search, filter, sort, and paginate history; mark
+  requests Tested/Interesting with notes; scope-aware capture mode.
 - **Open Browser** (`./browse.sh`) — isolated Chromium profile pre-pointed
   at the proxy, Burp-style. Run on your desktop, not in a container.
 - **Site map** — folder-style host/path tree merged with JS-discovered
@@ -22,6 +22,7 @@ Docker instead of the Java desktop app. Built for authorized testing
   with anomaly highlighting.
 - **Active scanner** — opt-in, scope-checked: missing security headers,
   reflected-XSS and error-based-SQLi probes, directory/file brute force.
+  Repeater/Intruder/Active Scanner sends are throttled to 1 req/s.
 - **Toolbox** — `nmap` scans, `searchsploit` (~48k exploits), and `nuclei`
   (~13.5k templates) integration, auto-chained from detected
   services/technologies, all scope-checked and parsed into Findings.
@@ -35,17 +36,25 @@ Docker instead of the Java desktop app. Built for authorized testing
   line-by-line text diff, both stateless.
 - **Passive scanner** — automatic checks on every flow (headers, reflected
   params, error pages, mixed content, interesting params, leaked secrets),
-  driving severity-colored Findings with triage status and CSV/Markdown
-  export.
+  driving severity-colored Findings (own detail page per finding) with
+  triage status and CSV/Markdown export.
 - **Vulnerabilities** — manually-curated report workspace: write up a
   vuln, attach proof requests, export the project as a Markdown report.
+- **Notes** — Notion-style per-project log: sidebar of notes, click one to
+  open and edit inline (autosaves), reference a request/finding/
+  vulnerability with `[req:123]`/`[finding:45]`/`[vuln:6]` for a link
+  straight to it.
 - **Scope enforcement** — every traffic-sending feature checks the active
-  project's scope list first and refuses if the target isn't in it.
-- **Custom headers** — per-project headers auto-injected into outbound
-  traffic (e.g. bug-bounty program identification), configurable per
-  traffic source.
-- **Project delete / export / import** — cascading delete, full JSON
-  export/import with ID remapping into a new project.
+  project's scope first; entries can be marked as exclusions so a wildcard
+  can carve out specific subdomains.
+- **Custom headers** — per-project, auto-injected into outbound traffic
+  (e.g. bug-bounty program identification); can append to an existing
+  header's value instead of only setting it when missing (for a required
+  User-Agent suffix, say).
+- **Projects** — name/description/rules live on the project and stay
+  editable; a full-setup page collects scope, headers, and rules together
+  when creating one. Delete / export / import with ID remapping.
+- **Light/dark theme**, toggled from the header.
 
 See each feature's code/templates for implementation details.
 
