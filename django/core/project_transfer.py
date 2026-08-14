@@ -135,7 +135,11 @@ def export_project(project):
                     for r in a.results.all()
                 ],
             }
-            for a in IntruderAttack.objects.filter(project=project)
+            # prefetch_related: without it, a.results.all() below is a
+            # separate query per attack (N+1) - the same shape as the
+            # scope_only N+1 fixed earlier this session, just not yet
+            # visible at today's data volume (1 attack = 1 extra query).
+            for a in IntruderAttack.objects.filter(project=project).prefetch_related("results")
         ],
         "active_scan_jobs": [
             {"target": j.target, "checks": j.checks, "status": j.status}
@@ -176,7 +180,9 @@ def export_project(project):
                 "description": v.description,
                 "flow_ids": list(v.flows.values_list("id", flat=True)),
             }
-            for v in Vulnerability.objects.filter(project=project)
+            # Same N+1 shape as intruder_attacks above - v.flows is a
+            # many-to-many, one query per vulnerability without this.
+            for v in Vulnerability.objects.filter(project=project).prefetch_related("flows")
         ],
     }
     return data
