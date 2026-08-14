@@ -218,15 +218,29 @@ def header_delete(request, pk):
     return redirect("core:header_list")
 
 
+def _is_ajax(request):
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+
 @login_required
 def notes_list(request):
     project = Project.get_active()
 
     if request.method == "POST":
         text = request.POST.get("text", "").strip()
-        if text:
-            ProjectNote.objects.create(project=project, text=text)
-            messages.success(request, "Note added.")
+        if not text:
+            if _is_ajax(request):
+                return JsonResponse({"error": "empty"}, status=400)
+            return redirect("core:notes_list")
+
+        note = ProjectNote.objects.create(project=project, text=text)
+        if _is_ajax(request):
+            return JsonResponse({
+                "id": note.pk,
+                "text": note.text,
+                "created_at": note.created_at.strftime("%Y-%m-%d %H:%M"),
+            })
+        messages.success(request, "Note added.")
         return redirect("core:notes_list")
 
     return render(request, "core/notes_list.html", {"project": project})
@@ -237,10 +251,16 @@ def notes_list(request):
 def note_edit(request, pk):
     note = get_object_or_404(ProjectNote, pk=pk, project=Project.get_active())
     text = request.POST.get("text", "").strip()
-    if text:
-        note.text = text
-        note.save(update_fields=["text", "updated_at"])
-        messages.success(request, "Note updated.")
+    if not text:
+        if _is_ajax(request):
+            return JsonResponse({"error": "empty"}, status=400)
+        return redirect("core:notes_list")
+
+    note.text = text
+    note.save(update_fields=["text", "updated_at"])
+    if _is_ajax(request):
+        return JsonResponse({"updated_at": note.updated_at.strftime("%Y-%m-%d %H:%M")})
+    messages.success(request, "Note updated.")
     return redirect("core:notes_list")
 
 
@@ -249,6 +269,8 @@ def note_edit(request, pk):
 def note_delete(request, pk):
     note = get_object_or_404(ProjectNote, pk=pk, project=Project.get_active())
     note.delete()
+    if _is_ajax(request):
+        return JsonResponse({"deleted": True})
     messages.success(request, "Note removed.")
     return redirect("core:notes_list")
 
