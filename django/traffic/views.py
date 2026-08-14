@@ -98,7 +98,8 @@ def history(request):
     if status:
         flows = flows.filter(status_code=status)
     if scope_only:
-        in_scope_ids = [f.id for f in flows if is_in_scope(project, f.host)]
+        scope_entries = list(project.scope_entries.values_list("pattern", "exclude"))
+        in_scope_ids = [f.id for f in flows if is_in_scope(project, f.host, entries=scope_entries)]
         flows = flows.filter(id__in=in_scope_ids)
     if review_status:
         flows = flows.filter(review_status=review_status)
@@ -324,6 +325,11 @@ def sitemap(request):
 
     project = Project.get_active()
     scope_only = request.GET.get("scope_only") == "1"
+    # Fetched once and threaded through every is_in_scope() call below
+    # instead of each one re-querying it fresh — this loop runs once per
+    # row across five different querysets, so that difference is a real
+    # N+1, not a hypothetical one (same fix as history()'s scope_only).
+    scope_entries = list(project.scope_entries.values_list("pattern", "exclude")) if scope_only else None
     flat = defaultdict(
         lambda: defaultdict(
             lambda: {"methods": set(), "statuses": set(), "method_flow_ids": {}, "method_counts": {}}
@@ -335,7 +341,7 @@ def sitemap(request):
     for flow_id, host, url, method, status in Flow.objects.filter(project=project).values_list(
         "id", "host", "url", "method", "status_code"
     ):
-        if scope_only and not is_in_scope(project, host):
+        if scope_only and not is_in_scope(project, host, entries=scope_entries):
             continue
         path = urlparse(url).path or "/"
         node = flat[host][path]
@@ -348,7 +354,7 @@ def sitemap(request):
     observed = {(host, path) for host, paths in flat.items() for path in paths}
 
     for host, path in DiscoveredEndpoint.objects.filter(project=project).values_list("host", "path"):
-        if scope_only and not is_in_scope(project, host):
+        if scope_only and not is_in_scope(project, host, entries=scope_entries):
             continue
         flat[host][path]  # touch to ensure the key exists even with no methods yet
 
@@ -358,7 +364,7 @@ def sitemap(request):
         "flow__host", "flow__url", "severity"
     )
     for host, url, severity in finding_rows:
-        if scope_only and not is_in_scope(project, host):
+        if scope_only and not is_in_scope(project, host, entries=scope_entries):
             continue
         key = (host, urlparse(url).path or "/")
         current = node_severity.get(key)
@@ -373,7 +379,7 @@ def sitemap(request):
     for host, severity in Finding.objects.filter(project=project, flow__isnull=True).exclude(host="").values_list(
         "host", "severity"
     ):
-        if scope_only and not is_in_scope(project, host):
+        if scope_only and not is_in_scope(project, host, entries=scope_entries):
             continue
         current = host_severity.get(host)
         if current is None or SEVERITY_ORDER[severity] > SEVERITY_ORDER[current]:
@@ -386,7 +392,7 @@ def sitemap(request):
 
     tech_by_host = defaultdict(list)
     for host, name, version in Technology.objects.filter(project=project).values_list("host", "name", "version"):
-        if scope_only and not is_in_scope(project, host):
+        if scope_only and not is_in_scope(project, host, entries=scope_entries):
             continue
         tech_by_host[host].append(f"{name} {version}".strip())
 
