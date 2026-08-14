@@ -24,7 +24,15 @@ NMAP_PROFILES = {
 
 # Excludes dos/intrusive/fuzz-tagged templates by default — this is meant
 # to be a safe opt-in check, not a template-library power-user tool.
-NUCLEI_DEFAULT_ARGS = ["-severity", "medium,high,critical", "-etags", "dos,intrusive,fuzz"]
+# Rate-limited to 10 req/s: nuclei is a subprocess making its own direct
+# connections, so it never goes through core.senders.send_request's 1 req/s
+# throttle (that only covers Repeater/Intruder/Active Scanner) — nuclei's
+# own default is 150 req/s. Verified this matters: an unthrottled run
+# against a real target triggered what looked like target-side rate
+# limiting/blocking partway through, aborting most of the scan. 10 req/s
+# (not 1) because nuclei sweeps thousands of templates per run, where the
+# same 1 req/s used elsewhere would turn a scan into a multi-hour job.
+NUCLEI_DEFAULT_ARGS = ["-severity", "medium,high,critical", "-etags", "dos,intrusive,fuzz", "-rate-limit", "10"]
 
 NUCLEI_SEVERITY_MAP = {"info": "info", "low": "low", "medium": "medium", "high": "high", "critical": "high"}
 
