@@ -41,7 +41,7 @@
             <td><span class="badge badge-{{ finding.severity }}">{{ finding.severity }}</span></td>
             <td>{{ finding.title }}<br><span class="muted">{{ finding.description }}</span></td>
             <td>{{ finding.source }}</td>
-            <td>{% if finding.flow %}<a href="{% url 'traffic:flow_detail' finding.flow.pk %}">{{ finding.flow.method }} {{ finding.flow.host }}</a>{% else %}—{% endif %}</td>
+            <td>{% if finding.flow %}<a href="{% url 'traffic:flow_detail' finding.flow.pk %}">{{ finding.flow.method }} {{ finding.flow.host }}</a>{% elif finding.host %}{{ finding.host }}{% else %}—{% endif %}</td>
             <td class="muted">{{ finding.created_at|date:"H:i:s" }}</td>
             <td>
                 <form class="inline" method="post" action="{% url 'scanner:finding_update' finding.pk %}">

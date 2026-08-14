@@ -63,10 +63,11 @@ def _with_query_param(url, key, value):
 
 
 def check_headers(project, target):
+    host = urlparse(target).hostname or ""
     try:
         response = send_request(project, "GET", target)
     except Exception as exc:  # noqa: BLE001
-        return [{"title": "Active headers check failed to send", "severity": "info", "description": str(exc)}]
+        return [{"title": "Active headers check failed to send", "severity": "info", "description": str(exc), "host": host}]
 
     headers = {k.lower(): v for k, v in response.headers.items()}
     return [
@@ -74,6 +75,7 @@ def check_headers(project, target):
             "title": f"Missing security header: {h}",
             "severity": "low",
             "description": f"Active fetch of {target} did not return the {h} header.",
+            "host": host,
         }
         for h in SECURITY_HEADERS
         if h not in headers
@@ -81,6 +83,7 @@ def check_headers(project, target):
 
 
 def check_reflected_xss(project, target):
+    host = urlparse(target).hostname or ""
     params = parse_qsl(urlparse(target).query)
     if not params:
         return []
@@ -98,11 +101,13 @@ def check_reflected_xss(project, target):
                 "title": f"Possible reflected XSS via parameter '{key}'",
                 "severity": "high",
                 "description": f"An unescaped marker injected into '{key}' ({probe_url}) was reflected verbatim in the response body.",
+                "host": host,
             })
     return findings
 
 
 def check_sqli(project, target):
+    host = urlparse(target).hostname or ""
     params = parse_qsl(urlparse(target).query)
     if not params:
         return []
@@ -126,6 +131,7 @@ def check_sqli(project, target):
                     "title": f"Possible SQL error triggered via parameter '{key}'",
                     "severity": "high",
                     "description": f"Payload {probe!r} on '{key}' ({probe_url}) produced a response containing '{marker_hit}', absent from the baseline response.",
+                    "host": host,
                 })
                 break  # one hit is enough evidence for this parameter
     return findings
@@ -133,6 +139,7 @@ def check_sqli(project, target):
 
 def check_dir_brute(project, target):
     parsed = urlparse(target)
+    host = parsed.hostname or ""
     base_path = parsed.path.rstrip("/")
     findings = []
     for word in DIR_BRUTE_WORDLIST:
@@ -146,6 +153,7 @@ def check_dir_brute(project, target):
                 "title": f"Discovered path: /{word}",
                 "severity": "info",
                 "description": f"{probe_url} returned HTTP {response.status_code}.",
+                "host": host,
             })
     return findings
 

@@ -356,6 +356,21 @@ def sitemap(request):
         if current is None or SEVERITY_ORDER[severity] > SEVERITY_ORDER[current]:
             node_severity[key] = severity
 
+    # Findings with no flow (Active Scanner, nmap, searchsploit, nuclei —
+    # anything not tied to one captured request) have no path to attach to,
+    # only a host, so they roll up onto that host's root node instead of a
+    # specific leaf.
+    host_severity = {}
+    for host, severity in Finding.objects.filter(project=project, flow__isnull=True).exclude(host="").values_list(
+        "host", "severity"
+    ):
+        current = host_severity.get(host)
+        if current is None or SEVERITY_ORDER[severity] > SEVERITY_ORDER[current]:
+            host_severity[host] = severity
+
+    for host in host_severity:
+        flat[host]  # ensure a host-only-finding host still gets a tree/badge even with nothing else captured
+
     from scanner.models import Technology
 
     tech_by_host = defaultdict(list)
@@ -365,6 +380,7 @@ def sitemap(request):
     hosts = []
     for host in sorted(flat):
         root = _new_tree_node()
+        root["severity"] = host_severity.get(host)
         for path, data in flat[host].items():
             segments = [s for s in path.split("/") if s]
             node = root
