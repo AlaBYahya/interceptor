@@ -15,7 +15,7 @@ from .models import ActiveScanJob, Finding, Technology
 _VERSION_RE = re.compile(r"\d+(?:\.\d+){0,2}")
 
 
-def _queue_searchsploit(project, name, version):
+def _queue_searchsploit(project, name, version, host=""):
     from toolbox.models import ScanJob
     from toolbox.tasks import run_searchsploit
 
@@ -25,7 +25,7 @@ def _queue_searchsploit(project, name, version):
     query = f"{name} {version_match.group(0)}"
     if ScanJob.objects.filter(project=project, tool="searchsploit", query=query).exists():
         return
-    job = ScanJob.objects.create(project=project, tool="searchsploit", query=query, status="pending")
+    job = ScanJob.objects.create(project=project, tool="searchsploit", query=query, target=host, status="pending")
     run_searchsploit.delay(job.pk)
 
 
@@ -72,7 +72,7 @@ def run_passive_checks(flow_id):
         # detection or a better version), not on every flow that re-detects
         # the same already-known tech.
         if version and (created or version_changed):
-            _queue_searchsploit(flow.project, name, version)
+            _queue_searchsploit(flow.project, name, version, host=flow.host)
 
 
 @shared_task

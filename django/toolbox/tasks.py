@@ -2,6 +2,7 @@ import json
 import re
 import subprocess
 import xml.etree.ElementTree as ET
+from urllib.parse import urlparse
 
 from celery import shared_task
 from django.utils import timezone
@@ -103,6 +104,10 @@ def _parse_nmap_xml(job, xml_text):
                 severity="info",
                 title=f"Open port {portid}/{protocol} on {addr}: {name}",
                 description=f"nmap detected {service_desc} on {addr}:{portid}/{protocol}.",
+                # job.target (the hostname scanned) rather than addr (its
+                # resolved IP), so this rolls up onto the same Site Map host
+                # node as everything else captured for that domain.
+                host=job.target,
             )
 
             # Auto-chain into searchsploit: a product+version pair is exactly
@@ -118,7 +123,9 @@ def _parse_nmap_xml(job, xml_text):
                 query = f"{product} {version_match.group(0)}"
                 if query not in queried:
                     queried.add(query)
-                    ss_job = ScanJob.objects.create(project=job.project, tool="searchsploit", query=query, status="pending")
+                    ss_job = ScanJob.objects.create(
+                        project=job.project, tool="searchsploit", query=query, target=job.target, status="pending"
+                    )
                     run_searchsploit.delay(ss_job.pk)
 
 
@@ -172,6 +179,11 @@ def _parse_searchsploit_json(job, output):
             severity="info",
             title=f"Exploit-DB match: {title}",
             description=f"EDB-ID {edb_id}{' | ' + cve if cve else ''} — query {job.query!r}.",
+            # Only set when this job was auto-chained from nmap/tech-detection
+            # (both now pass the originating host through as ScanJob.target);
+            # a searchsploit run started directly from the Toolbox UI has no
+            # host to attach to, same as before.
+            host=job.target,
         )
 
 
@@ -255,11 +267,13 @@ def _parse_nuclei_jsonl(job, output):
         info = entry.get("info", {})
         severity = NUCLEI_SEVERITY_MAP.get(info.get("severity", "info"), "info")
         template_id = entry.get("template-id", "")
+        matched_at = entry.get("matched-at", job.target)
         Finding.objects.create(
             project=job.project,
             flow=None,
             source="nuclei",
             severity=severity,
             title=f"nuclei: {info.get('name', template_id or 'finding')}",
-            description=f"Template '{template_id}' matched at {entry.get('matched-at', job.target)}.",
+            description=f"Template '{template_id}' matched at {matched_at}.",
+            host=urlparse(matched_at).hostname or job.target,
         )
