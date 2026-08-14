@@ -50,7 +50,7 @@
         {% for finding in findings %}
         <tr>
             <td><span class="badge badge-{{ finding.severity }}">{{ finding.severity }}</span></td>
-            <td>{{ finding.title }}<br><span class="muted">{{ finding.description }}</span></td>
+            <td><a href="{% url 'scanner:finding_detail' finding.pk %}">{{ finding.title }}</a><br><span class="muted">{{ finding.description }}</span></td>
             <td>{{ finding.source }}</td>
             <td>{% if finding.flow %}<a href="{% url 'traffic:flow_detail' finding.flow.pk %}">{{ finding.flow.method }} {{ finding.flow.host }}</a>{% elif finding.host %}{{ finding.host }}{% else %}—{% endif %}</td>
             <td class="muted">{{ finding.created_at|date:"H:i:s" }}</td>

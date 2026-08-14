@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ finding.title }} — Interceptor{% endblock %}
+{% block content %}
+<p><a href="{% url 'scanner:findings' %}">&larr; back to findings</a></p>
+
+<div class="panel">
+    <h2><span class="badge badge-{{ finding.severity }}">{{ finding.severity }}</span> {{ finding.title }}</h2>
+    <p class="muted">Source: {{ finding.get_source_display }} &middot; Host: {{ finding.host|default:"—" }} &middot; Found {{ finding.created_at|date:"Y-m-d H:i" }}</p>
+    {% if finding.description %}<p>{{ finding.description }}</p>{% endif %}
+
+    {% if finding.flow %}
+    <p><a href="{% url 'traffic:flow_detail' finding.flow.pk %}">&rarr; {{ finding.flow.method }} {{ finding.flow.host }} {{ finding.flow.url|truncatechars:70 }}</a></p>
+    {% endif %}
+
+    <form method="post" action="{% url 'scanner:finding_update' finding.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <label class="muted">Triage:</label>
+        <select name="review_status" onchange="this.form.submit()">
+            <option value="unreviewed" {% if finding.review_status == "unreviewed" %}selected{% endif %}>unreviewed</option>
+            <option value="confirmed" {% if finding.review_status == "confirmed" %}selected{% endif %}>confirmed</option>
+            <option value="false_positive" {% if finding.review_status == "false_positive" %}selected{% endif %}>false positive</option>
+        </select>
+    </form>
+</div>
+{% endblock %}

@@ -2,47 +2,60 @@
 {% block title %}Notes — Interceptor{% endblock %}
 {% block extrahead %}
 <style>
-    .notes-page { max-width: 720px; margin: 0 auto; }
-    .note-block { position: relative; border-radius: 6px; padding: 0.15rem 0.4rem; margin: 0 -0.4rem; }
-    .note-block:hover { background: var(--bg-hover); }
-    .note-text {
-        display: block; width: 100%; box-sizing: border-box; border: none; background: transparent;
-        color: var(--text); font-family: inherit; font-size: 0.95rem; line-height: 1.6;
-        resize: none; overflow: hidden; padding: 0.3rem 0; margin: 0;
-    }
-    .note-text:focus { outline: none; }
-    .note-text.placeholder-empty { color: var(--text-muted); }
-    .note-meta {
-        display: flex; justify-content: space-between; align-items: center;
-        font-size: 0.78rem; height: 0; overflow: hidden; opacity: 0; transition: opacity 0.15s;
-    }
-    .note-block:hover .note-meta, .note-block:focus-within .note-meta { height: auto; opacity: 1; padding-bottom: 0.35rem; }
-    .note-delete { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.78rem; padding: 0; }
-    .note-delete:hover { color: var(--badge-high-fg); }
-    .note-save-state { color: var(--badge-low-fg); }
+    .notes-layout { display: grid; grid-template-columns: 260px 1fr; gap: 1rem; align-items: start; }
+    .notes-sidebar { position: sticky; top: 0.8rem; }
+    .note-new-btn { width: 100%; margin-bottom: 0.6rem; }
+    .note-tile { display: block; padding: 0.5rem 0.6rem; border-radius: 6px; text-decoration: none; color: var(--text-dim); margin-bottom: 0.15rem; border: 1px solid transparent; }
+    .note-tile:hover { background: var(--bg-hover); }
+    .note-tile.selected { background: var(--bg-elevated); color: var(--text); border-color: var(--border); }
+    .note-tile-preview { display: block; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .note-tile-time { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.15rem; }
+    .note-detail-text { font-size: 0.95rem; line-height: 1.7; min-height: 3rem; white-space: pre-wrap; cursor: text; padding: 0.3rem; border-radius: 4px; }
+    .note-detail-text:hover { background: var(--bg-hover); }
+    .note-detail-textarea { display: block; width: 100%; box-sizing: border-box; border: none; background: transparent; color: var(--text); font-family: inherit; font-size: 0.95rem; line-height: 1.7; resize: none; overflow: hidden; padding: 0.3rem; }
+    .note-detail-textarea:focus { outline: none; }
+    .note-ref { background: var(--badge-info-bg); color: var(--badge-info-fg); padding: 0 0.25rem; border-radius: 3px; text-decoration: none; font-family: ui-monospace, monospace; font-size: 0.85em; }
+    .note-ref:hover { text-decoration: underline; }
+    .note-meta { margin-bottom: 0.5rem; }
+    .note-delete-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0; font-size: inherit; text-decoration: underline; }
+    .note-delete-btn:hover { color: var(--badge-high-fg); }
 </style>
 {% endblock %}
 {% block content %}
-<div class="notes-page">
 <h2>Notes — {{ project.name }}</h2>
-<p class="muted">A running log for this project — what you tried, found, or still need to check. Click anywhere to start typing; it saves as you go.</p>
+<p class="muted">A running log for this project. Reference a specific item inline with <code>[req:123]</code>, <code>[finding:45]</code>, or <code>[vuln:6]</code> — they become clickable links.</p>
 
-{% csrf_token %}
-<div id="notes-container">
-    <div class="note-block" id="new-note-block">
-        <textarea class="note-text placeholder-empty" id="new-note-text" placeholder="+ Add a note..." rows="1"></textarea>
+<div class="notes-layout">
+    <div class="notes-sidebar">
+        <a href="?note=new"><button type="button" class="note-new-btn">+ New note</button></a>
+        {% for note in notes %}
+        <a class="note-tile {% if selected and note.pk == selected.pk %}selected{% endif %}" href="?note={{ note.pk }}">
+            <span class="note-tile-preview">{{ note.text|truncatechars:50|default:"(empty)" }}</span>
+            <span class="note-tile-time">{{ note.created_at|date:"M j, H:i" }}</span>
+        </a>
+        {% empty %}
+        <p class="muted">No notes yet.</p>
+        {% endfor %}
     </div>
 
-    {% for note in project.notes.all %}
-    <div class="note-block" data-note-id="{{ note.pk }}">
-        <textarea class="note-text" rows="1">{{ note.text }}</textarea>
-        <div class="note-meta">
-            <span class="muted note-timestamp">{{ note.created_at|date:"Y-m-d H:i" }}{% if note.updated_at != note.created_at %} &middot; edited {{ note.updated_at|date:"Y-m-d H:i" }}{% endif %}</span>
-            <button type="button" class="note-delete">Delete</button>
+    <div class="panel" id="note-detail">
+        {% if is_new %}
+        <textarea class="note-detail-textarea" id="note-textarea" rows="3" autofocus placeholder="Type a note..."></textarea>
+        {% elif selected %}
+        <div class="muted note-meta">
+            <span id="note-meta-time" data-created="{{ selected.created_at|date:'Y-m-d H:i' }}">{{ selected.created_at|date:"Y-m-d H:i" }}{% if selected.updated_at != selected.created_at %} &middot; edited {{ selected.updated_at|date:"Y-m-d H:i" }}{% endif %}</span>
+            &middot;
+            <form class="inline" method="post" action="{% url 'core:note_delete' selected.pk %}" onsubmit="return confirm('Delete this note?');">
+                {% csrf_token %}
+                <button type="submit" class="note-delete-btn">delete</button>
+            </form>
         </div>
+        <div class="note-detail-text" id="note-view">{{ selected_rendered }}</div>
+        <textarea class="note-detail-textarea" id="note-textarea" data-id="{{ selected.pk }}" rows="3" style="display:none;">{{ selected.text }}</textarea>
+        {% else %}
+        <p class="muted">No notes yet — click "+ New note" to start one.</p>
+        {% endif %}
     </div>
-    {% endfor %}
-</div>
 </div>
 
 <script>
@@ -52,11 +65,6 @@
         return m ? m.pop() : '';
     }
     const csrftoken = getCookie('csrftoken');
-
-    function autoResize(el) {
-        el.style.height = 'auto';
-        el.style.height = el.scrollHeight + 'px';
-    }
 
     function post(url, text) {
         return fetch(url, {
@@ -70,95 +78,59 @@
         }).then(function (r) { return r.json(); });
     }
 
-    // Wires auto-resize, save-on-blur, and delete for one note block.
-    // `id` is looked up lazily via a getter so a block created for a
-    // brand-new note can be wired before its id exists yet.
-    function wireBlock(block, getId) {
-        const textarea = block.querySelector('.note-text');
-        let original = textarea.value;
-
-        autoResize(textarea);
-        textarea.addEventListener('input', function () { autoResize(textarea); });
-
-        textarea.addEventListener('blur', function () {
-            const id = getId();
-            if (!id || textarea.value === original || textarea.value.trim() === '') return;
-            post('/projects/notes/' + id + '/edit/', textarea.value).then(function (data) {
-                if (data.error) return;
-                original = textarea.value;
-                const ts = block.querySelector('.note-timestamp');
-                if (ts) ts.textContent = ts.textContent.split(' · ')[0] + ' · edited ' + data.updated_at;
-            });
-        });
-
-        const del = block.querySelector('.note-delete');
-        if (del) {
-            del.addEventListener('click', function () {
-                const id = getId();
-                if (!id || !confirm('Delete this note?')) return;
-                post('/projects/notes/' + id + '/delete/', '__delete__').then(function () {
-                    block.remove();
-                });
-            });
-        }
+    function autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
     }
 
-    document.querySelectorAll('.note-block[data-note-id]').forEach(function (block) {
-        const id = block.dataset.noteId;
-        wireBlock(block, function () { return id; });
-    });
+    const textarea = document.getElementById('note-textarea');
+    const view = document.getElementById('note-view');
+    if (!textarea) return;
 
-    // The "+ Add a note" box: on first blur with content, create the note
-    // for real, turn this box into a normal (now-saved) note block with its
-    // own delete control, and reset itself to an empty placeholder so the
-    // next note can be started the same way.
-    const newBlock = document.getElementById('new-note-block');
-    const newText = document.getElementById('new-note-text');
+    autoResize(textarea);
+    textarea.addEventListener('input', function () { autoResize(textarea); });
 
-    newText.addEventListener('focus', function () {
-        newText.classList.remove('placeholder-empty');
-    });
-
-    newText.addEventListener('input', function () { autoResize(newText); });
-
-    newText.addEventListener('blur', function () {
-        const value = newText.value.trim();
-        if (!value) {
-            newText.classList.add('placeholder-empty');
-            return;
-        }
-        post('/projects/notes/', value).then(function (data) {
-            if (data.error) return;
-
-            const savedBlock = document.createElement('div');
-            savedBlock.className = 'note-block';
-            savedBlock.dataset.noteId = data.id;
-            const savedText = document.createElement('textarea');
-            savedText.className = 'note-text';
-            savedText.rows = 1;
-            savedText.value = data.text;
-            const meta = document.createElement('div');
-            meta.className = 'note-meta';
-            const ts = document.createElement('span');
-            ts.className = 'muted note-timestamp';
-            ts.textContent = data.created_at;
-            const delBtn = document.createElement('button');
-            delBtn.type = 'button';
-            delBtn.className = 'note-delete';
-            delBtn.textContent = 'Delete';
-            meta.appendChild(ts);
-            meta.appendChild(delBtn);
-            savedBlock.appendChild(savedText);
-            savedBlock.appendChild(meta);
-            newBlock.insertAdjacentElement('afterend', savedBlock);
-            wireBlock(savedBlock, function () { return data.id; });
-            autoResize(savedText);
-
-            newText.value = '';
-            newText.classList.add('placeholder-empty');
-            autoResize(newText);
+    if (view) {
+        // Existing note: click the rendered text to edit it, unless the
+        // click landed on a [req:N]/[finding:N]/[vuln:N] reference link,
+        // which should navigate instead of entering edit mode.
+        view.addEventListener('click', function (e) {
+            if (e.target.closest('.note-ref')) return;
+            view.style.display = 'none';
+            textarea.style.display = 'block';
+            autoResize(textarea);
+            textarea.focus();
         });
-    });
+
+        textarea.addEventListener('blur', function () {
+            const id = textarea.dataset.id;
+            if (textarea.value.trim() === '') {
+                textarea.style.display = 'none';
+                view.style.display = 'block';
+                return;
+            }
+            post('/projects/notes/' + id + '/edit/', textarea.value).then(function (data) {
+                if (data.error) return;
+                view.innerHTML = data.rendered;
+                textarea.style.display = 'none';
+                view.style.display = 'block';
+                const meta = document.getElementById('note-meta-time');
+                if (meta) meta.textContent = meta.dataset.created + ' · edited ' + data.updated_at;
+            });
+        });
+    } else {
+        // Brand-new note: nothing to render yet, create it for real on
+        // first blur with content, then reload selected onto its own id.
+        textarea.focus();
+        textarea.addEventListener('blur', function () {
+            const value = textarea.value.trim();
+            if (!value) return;
+            post('/projects/notes/', value).then(function (data) {
+                if (data.error) return;
+                window.location.href = '?note=' + data.id;
+            });
+        });
+    }
 })();
 </script>
 {% endblock %}

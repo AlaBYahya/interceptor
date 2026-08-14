@@ -5,10 +5,12 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from .models import CustomHeader, Project, ProjectNote, ScopeEntry
+from .notes import render_note_text
 from .project_transfer import export_project, import_project
 
 
@@ -235,15 +237,30 @@ def notes_list(request):
 
         note = ProjectNote.objects.create(project=project, text=text)
         if _is_ajax(request):
-            return JsonResponse({
-                "id": note.pk,
-                "text": note.text,
-                "created_at": note.created_at.strftime("%Y-%m-%d %H:%M"),
-            })
+            return JsonResponse({"id": note.pk})
         messages.success(request, "Note added.")
-        return redirect("core:notes_list")
+        return redirect(f"{reverse('core:notes_list')}?note={note.pk}")
 
-    return render(request, "core/notes_list.html", {"project": project})
+    notes = list(project.notes.all())
+    note_param = request.GET.get("note", "")
+    is_new = note_param == "new"
+    selected = None
+    if not is_new and note_param:
+        selected = next((n for n in notes if str(n.pk) == note_param), None)
+    if not is_new and selected is None and notes:
+        selected = notes[0]
+
+    return render(
+        request,
+        "core/notes_list.html",
+        {
+            "project": project,
+            "notes": notes,
+            "selected": selected,
+            "is_new": is_new,
+            "selected_rendered": render_note_text(selected.text) if selected else "",
+        },
+    )
 
 
 @login_required
@@ -259,7 +276,10 @@ def note_edit(request, pk):
     note.text = text
     note.save(update_fields=["text", "updated_at"])
     if _is_ajax(request):
-        return JsonResponse({"updated_at": note.updated_at.strftime("%Y-%m-%d %H:%M")})
+        return JsonResponse({
+            "rendered": render_note_text(note.text),
+            "updated_at": note.updated_at.strftime("%Y-%m-%d %H:%M"),
+        })
     messages.success(request, "Note updated.")
     return redirect("core:notes_list")
 

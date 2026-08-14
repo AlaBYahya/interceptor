@@ -4,6 +4,7 @@ from . import views, vuln_views
 
 urlpatterns = [
     path("", views.findings, name="findings"),
+    path("<int:pk>/", views.finding_detail, name="finding_detail"),
     path("<int:pk>/update/", views.finding_update, name="finding_update"),
     path("export/", views.export_findings, name="export_findings"),
     path("technologies/", views.technologies, name="technologies"),

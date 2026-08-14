@@ -116,6 +116,13 @@ def export_findings(request):
 
 
 @login_required
+def finding_detail(request, pk):
+    project = Project.get_active()
+    finding = get_object_or_404(Finding, pk=pk, project=project)
+    return render(request, "scanner/finding_detail.html", {"finding": finding})
+
+
+@login_required
 @require_POST
 def finding_update(request, pk):
     project = Project.get_active()
