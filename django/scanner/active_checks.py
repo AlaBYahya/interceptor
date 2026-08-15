@@ -142,19 +142,41 @@ def check_dir_brute(project, target):
     host = parsed.hostname or ""
     base_path = parsed.path.rstrip("/")
     findings = []
+
+    # SPA-style apps (Angular/React/Vue with client-side routing) commonly
+    # serve a 200 catch-all for literally any unmatched path — verified
+    # against a real target where every single wordlist entry, including
+    # nonsense ones like "config.php" on a Node.js app, returned 200 with
+    # byte-identical content to a deliberately-bogus random path (100%
+    # false positive rate). Probing that baseline first and skipping any
+    # wordlist hit that matches it filters this out while still catching
+    # real distinct content (verified: a real robots.txt, 28 bytes, stayed
+    # distinguishable from a 9393-byte SPA-shell fallback).
+    baseline_path = f"{base_path}/__interceptor_baseline_{secrets.token_hex(8)}__"
+    baseline_url = urlunparse(parsed._replace(path=baseline_path, query=""))
+    try:
+        baseline_response = send_request(project, "GET", baseline_url)
+        baseline_signature = (baseline_response.status_code, len(baseline_response.content))
+    except Exception:  # noqa: BLE001
+        baseline_signature = None
+
     for word in DIR_BRUTE_WORDLIST:
         probe_url = urlunparse(parsed._replace(path=f"{base_path}/{word}", query=""))
         try:
             response = send_request(project, "GET", probe_url)
         except Exception:  # noqa: BLE001
             continue
-        if response.status_code < 400:
-            findings.append({
-                "title": f"Discovered path: /{word}",
-                "severity": "info",
-                "description": f"{probe_url} returned HTTP {response.status_code}.",
-                "host": host,
-            })
+        if response.status_code >= 400:
+            continue
+        signature = (response.status_code, len(response.content))
+        if baseline_signature is not None and signature == baseline_signature:
+            continue
+        findings.append({
+            "title": f"Discovered path: /{word}",
+            "severity": "info",
+            "description": f"{probe_url} returned HTTP {response.status_code}.",
+            "host": host,
+        })
     return findings
 
 

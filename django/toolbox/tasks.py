@@ -217,9 +217,17 @@ def run_nuclei(job_id):
     cmd = ["nuclei", "-target", job.target, "-jsonl", "-silent", *flags]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        # NUCLEI_DEFAULT_ARGS' filter (medium+ severity, no dos/intrusive/
+        # fuzz tags) still matches ~7000 templates as of the current
+        # nuclei-templates snapshot — at the enforced 10 req/s rate limit
+        # that's a ~700s floor just to dispatch one request per template,
+        # before accounting for templates that issue more than one. A 600s
+        # timeout here guaranteed every default-args scan would time out
+        # before finishing, regardless of target (verified against a local,
+        # zero-latency target). 3600s leaves real headroom.
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
     except subprocess.TimeoutExpired:
-        _fail(job, "nuclei timed out after 600s.")
+        _fail(job, "nuclei timed out after 3600s.")
         return
     except FileNotFoundError:
         _fail(job, "nuclei is not installed in this container.")
