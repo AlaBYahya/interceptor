@@ -8,6 +8,7 @@ import secrets
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from core.senders import send_request
+from traffic.models import DiscoveredEndpoint
 
 SECURITY_HEADERS = [
     "content-security-policy",
@@ -171,6 +172,12 @@ def check_dir_brute(project, target):
         signature = (response.status_code, len(response.content))
         if baseline_signature is not None and signature == baseline_signature:
             continue
+        # Same reasoning as Site Map's JS-endpoint discovery: a dir-brute hit
+        # is a real path this tool now knows about even though it was never
+        # captured as proxied traffic — without this it only ever existed as
+        # freeform text in the Finding description, invisible to Site Map.
+        if host:
+            DiscoveredEndpoint.objects.get_or_create(project=project, host=host, path=f"{base_path}/{word}")
         findings.append({
             "title": f"Discovered path: /{word}",
             "severity": "info",

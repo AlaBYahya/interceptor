@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from core.scope import is_in_scope
 from scanner.models import Finding
+from traffic.models import DiscoveredEndpoint
 
 from .models import ScanJob
 
@@ -284,6 +285,7 @@ def _parse_nuclei_jsonl(job, output):
         severity = NUCLEI_SEVERITY_MAP.get(info.get("severity", "info"), "info")
         template_id = entry.get("template-id", "")
         matched_at = entry.get("matched-at", job.target)
+        matched_url = urlparse(matched_at)
         Finding.objects.create(
             project=job.project,
             flow=None,
@@ -291,5 +293,16 @@ def _parse_nuclei_jsonl(job, output):
             severity=severity,
             title=f"nuclei: {info.get('name', template_id or 'finding')}",
             description=f"Template '{template_id}' matched at {matched_at}.",
-            host=urlparse(matched_at).hostname or job.target,
+            host=matched_url.hostname or job.target,
         )
+
+        # Same reasoning as check_dir_brute: a matched URL is a real path
+        # this tool now knows about, never captured as proxied traffic —
+        # without this it only ever existed as freeform text in the Finding
+        # description, invisible to Site Map. matched_url.hostname is None
+        # for a non-HTTP matched-at (e.g. some DNS/TCP templates), in which
+        # case there's no sensible (host, path) pair to record.
+        if matched_url.hostname and is_in_scope(job.project, matched_url.hostname):
+            DiscoveredEndpoint.objects.get_or_create(
+                project=job.project, host=matched_url.hostname, path=matched_url.path or "/",
+            )

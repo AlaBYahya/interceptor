@@ -78,8 +78,17 @@ class IngestAddon:
 
     def response(self, flow: http.HTTPFlow) -> None:
         req, resp = flow.request, flow.response
-        req_body_text, req_b64 = _safe_text(req.raw_content or b"")
-        resp_body_text, resp_b64 = _safe_text(resp.raw_content or b"") if resp else ("", False)
+        # .content, not .raw_content: mitmproxy's .raw_content is the raw
+        # wire bytes (still gzip/deflate/br-compressed if Content-Encoding
+        # says so), while .content is decompressed. Using raw_content meant
+        # any compressed response's body failed the UTF-8 decode below and
+        # got treated as opaque base64 — silently disabling every
+        # text-based check (leaked secrets, reflected params, verbose
+        # errors, JS endpoint discovery, tech fingerprinting from body) for
+        # any gzip-compressed response, which real servers send constantly
+        # (Express/nginx compression is on by default almost everywhere).
+        req_body_text, req_b64 = _safe_text(req.content or b"")
+        resp_body_text, resp_b64 = _safe_text(resp.content or b"") if resp else ("", False)
 
         duration_ms = None
         if resp and resp.timestamp_end and req.timestamp_start:

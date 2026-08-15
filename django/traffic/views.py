@@ -86,6 +86,7 @@ def history(request):
     status = request.GET.get("status", "").strip()
     scope_only = request.GET.get("scope_only") == "1"
     review_status = request.GET.get("review_status", "").strip()
+    severity = request.GET.get("severity", "").strip()
 
     if q:
         # Matches host, the full URL (path/query/filename), or note text —
@@ -104,6 +105,16 @@ def history(request):
         flows = flows.filter(id__in=in_scope_ids)
     if review_status:
         flows = flows.filter(review_status=review_status)
+    if severity:
+        from scanner.models import Finding
+
+        # "has a finding of this severity", not "highest finding equals
+        # this severity" — a flow with both a high and a low finding
+        # should still show up under the "low" filter, not just "high".
+        matching_ids = Finding.objects.filter(project=project, severity=severity, flow_id__isnull=False).values_list(
+            "flow_id", flat=True
+        )
+        flows = flows.filter(id__in=matching_ids)
 
     sort = request.GET.get("sort", "time")
     direction = request.GET.get("dir", "desc")
@@ -128,7 +139,11 @@ def history(request):
     # already sorted by that column, else default to ascending. Changing
     # sort intentionally drops back to page 1 rather than carrying a page
     # number that may not exist under the new ordering's row count.
-    base_params = {k: v for k, v in {"q": q, "method": method, "status": status, "review_status": review_status}.items() if v}
+    base_params = {
+        k: v
+        for k, v in {"q": q, "method": method, "status": status, "review_status": review_status, "severity": severity}.items()
+        if v
+    }
     if scope_only:
         base_params["scope_only"] = "1"
     if per_page != "50":
@@ -170,7 +185,14 @@ def history(request):
         {
             "project": project,
             "flows": flows,
-            "filters": {"q": q, "method": method, "status": status, "scope_only": scope_only, "review_status": review_status},
+            "filters": {
+                "q": q,
+                "method": method,
+                "status": status,
+                "scope_only": scope_only,
+                "review_status": review_status,
+                "severity": severity,
+            },
             "sort_urls": sort_urls,
             "sort_arrows": sort_arrows,
             "page_obj": page_obj,

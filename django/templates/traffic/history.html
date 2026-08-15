@@ -28,6 +28,13 @@
         <option value="tested" {% if filters.review_status == "tested" %}selected{% endif %}>tested</option>
         <option value="interesting" {% if filters.review_status == "interesting" %}selected{% endif %}>interesting</option>
     </select>
+    <select name="severity">
+        <option value="">any severity</option>
+        <option value="info" {% if filters.severity == "info" %}selected{% endif %}>info</option>
+        <option value="low" {% if filters.severity == "low" %}selected{% endif %}>low</option>
+        <option value="medium" {% if filters.severity == "medium" %}selected{% endif %}>medium</option>
+        <option value="high" {% if filters.severity == "high" %}selected{% endif %}>high</option>
+    </select>
     <label style="display:flex;align-items:center;gap:0.3rem;">
         <input type="checkbox" name="scope_only" value="1" {% if filters.scope_only %}checked{% endif %}>
         in-scope only

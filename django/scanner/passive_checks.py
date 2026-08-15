@@ -27,12 +27,32 @@ INTERESTING_PARAM_NAMES = {
 }
 
 # Regexes for secrets/credentials that shouldn't appear in a response body.
+# High-specificity formats — vanishingly unlikely to appear in ordinary
+# JS/HTML by coincidence, so these are safe to check on any response.
 SECRET_PATTERNS = [
     ("AWS access key", re.compile(r"AKIA[0-9A-Z]{16}")),
-    ("Generic API key assignment", re.compile(r"""(?i)api[_-]?key["']?\s*[:=]\s*["'][A-Za-z0-9_\-]{16,}["']""")),
     ("JWT", re.compile(r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")),
     ("Private key block", re.compile(r"-----BEGIN (?:RSA|EC|OPENSSH|DSA|PGP) PRIVATE KEY-----")),
-    ("Password field in response", re.compile(r"""(?i)"?passw(?:or)?d"?\s*[:=]\s*["'][^"']{3,}["']""")),
+]
+
+# These two match ordinary key/value shapes ("apiKey: '...'", "password:
+# '...'") that are everywhere in normal client-side JS — enum values,
+# autocomplete attributes, i18n translation strings, Vue/React prop names.
+# Verified on two live bug-bounty targets: unrestricted, this pattern
+# flagged 25 "high severity" findings, all false positives (German UI
+# translation strings, a `MayChangePassword` permission-enum member, Vue's
+# password-field-visibility toggle). A genuine leak in a response BODY (as
+# opposed to source code shipped to the client on purpose) shows up in
+# structured API data, so restrict these two to JSON responses — this still
+# catches the true positive the check exists for (a real password hash in
+# a JSON API response body).
+JSON_ONLY_SECRET_PATTERNS = [
+    ("Generic API key assignment", re.compile(r"""(?i)api[_-]?key["']?\s*[:=]\s*["'][A-Za-z0-9_\-]{16,}["']""")),
+    # Value excludes whitespace: also found this firing on legitimate i18n
+    # JSON (e.g. {"MANDATORY_PASSWORD": "Please provide a password."}) even
+    # restricted to JSON content-type — real password/hash values never
+    # contain spaces, natural-language UI strings always do.
+    ("Password field in response", re.compile(r"""(?i)"?passw(?:or)?d"?\s*[:=]\s*["'][^"'\s]{3,}["']""")),
 ]
 
 VERBOSE_ERROR_MARKERS = [
@@ -51,9 +71,34 @@ VERBOSE_ERROR_MARKERS = [
 # traceback — plain substring markers above miss this shape entirely.
 JSON_STACK_TRACE_RE = re.compile(r'"(?:stackTrace|className|methodName)"\s*:')
 
+# Translation/locale JSON files (i18next, ngx-translate, react-intl,
+# vue-i18n all converge on this path shape) routinely have keys like
+# "MANDATORY_PASSWORD" or "LABEL_PASSWORD" whose values are UI copy, not
+# secrets — verified one matched even after excluding whitespace ("Password"
+# as a single-word field label). These files structurally can't carry a
+# real API response secret, so exclude the path shape outright rather than
+# chase every possible label-value shape with more regex.
+_I18N_PATH_RE = re.compile(r"/(?:i18n|locales?|lang|translations?)/", re.IGNORECASE)
+
+# A blind "http://" substring search chases an endless list of namespace/
+# protocol identifiers that use http:// URIs without ever loading them as a
+# resource — xmlns="http://www.w3.org/2000/svg" (XML namespaces spec) and
+# prefix="og: http://ogp.me/ns#" (Open Graph, on nearly every modern page's
+# <head>) both verified false-positive on real HTML pages. Excluding hosts
+# one at a time doesn't scale, so require an actual resource-loading
+# context instead: src=/href=/action= attribute values or a CSS url().
+_MIXED_CONTENT_RE = re.compile(r"""(?:src|href|action)\s*=\s*["']http://|url\(\s*["']?http://""", re.IGNORECASE)
+
 
 def _param_segments(name: str):
     return [seg for seg in re.split(r"[^a-zA-Z0-9]+", name.lower()) if seg]
+
+
+def _content_type(flow):
+    for key, value in (flow.response_headers or {}).items():
+        if key.lower() == "content-type":
+            return value.lower()
+    return ""
 
 
 def check_missing_security_headers(flow):
@@ -95,7 +140,12 @@ def check_verbose_errors(flow):
                 "severity": "medium",
                 "description": f"Response body contains a marker suggesting a verbose error page ('{marker}').",
             }]
-    if JSON_STACK_TRACE_RE.search(flow.response_body):
+    # "className"/"methodName" are ordinary property names in a LOT of
+    # bundled client-side JS (React's className prop, generic OOP-style
+    # code) — verified this fired on a plain .js asset on a live target.
+    # Real structured-error API responses are JSON, not JS source, so only
+    # check this shape there.
+    if "json" in _content_type(flow) and JSON_STACK_TRACE_RE.search(flow.response_body):
         return [{
             "title": "Verbose error / stack trace exposed",
             "severity": "medium",
@@ -105,9 +155,20 @@ def check_verbose_errors(flow):
 
 
 def check_mixed_content(flow):
-    if not flow.url.startswith("https://") or not flow.response_body or flow.response_body_is_base64:
+    # Restricted to actual HTML pages, not JS/CSS bundles — verified a
+    # blind substring search on a live target matched only
+    # xmlns="http://www.w3.org/2000/svg" (an XML namespace identifier,
+    # not a loaded resource) inside bundled JS that renders SVG icons,
+    # which is present on nearly any modern site and isn't mixed content
+    # in any real sense.
+    if (
+        not flow.url.startswith("https://")
+        or not flow.response_body
+        or flow.response_body_is_base64
+        or "html" not in _content_type(flow)
+    ):
         return []
-    if "http://" in flow.response_body:
+    if _MIXED_CONTENT_RE.search(flow.response_body):
         return [{
             "title": "Possible mixed content",
             "severity": "info",
@@ -146,7 +207,10 @@ def check_leaked_secrets(flow):
     if not flow.response_body or flow.response_body_is_base64:
         return findings
     body = flow.response_body
-    for label, pattern in SECRET_PATTERNS:
+    patterns = SECRET_PATTERNS
+    if "json" in _content_type(flow) and not _I18N_PATH_RE.search(flow.url):
+        patterns = SECRET_PATTERNS + JSON_ONLY_SECRET_PATTERNS
+    for label, pattern in patterns:
         if pattern.search(body):
             findings.append({
                 "title": f"Possible leaked secret: {label}",
