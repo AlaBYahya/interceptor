@@ -49,6 +49,13 @@ def _with_project_headers(project, headers):
     return merged
 
 
+def strip_nul(value):
+    """Postgres text columns reject a raw NUL byte outright — strip it
+    rather than let a save() blow up on a response body that happens to
+    contain one (rare, but real servers can send it)."""
+    return value.replace("\x00", "") if isinstance(value, str) else value
+
+
 def recalculate_content_length(headers, content: bytes):
     """Like Burp's Repeater/Intruder, always keep Content-Length in sync with
     the actual body being sent — the user edits a body and shouldn't have to
@@ -61,7 +68,7 @@ def recalculate_content_length(headers, content: bytes):
     return headers
 
 
-def send_request(project, method, url, headers=None, body=None, timeout=15.0):
+def send_request(project, method, url, headers=None, body=None, timeout=15.0, throttle=True):
     if not is_in_scope(project, url):
         raise OutOfScopeError(f"'{url}' is not in the '{project.name}' project scope")
 
@@ -69,7 +76,13 @@ def send_request(project, method, url, headers=None, body=None, timeout=15.0):
     headers = _with_project_headers(project, headers)
     headers = recalculate_content_length(headers, content)
 
-    _throttle()
+    # Skippable for callers that already pace themselves (the crawler has
+    # its own configurable, jittered rate limiter) — without this, this
+    # blanket 1 req/s floor silently overrides a faster user-configured
+    # crawl rate instead of just acting as the safety net it's meant to be
+    # for Repeater/Intruder/Active Scanner, which have no pacing of their own.
+    if throttle:
+        _throttle()
 
     # This is a security-testing tool: it's expected to hit self-signed/
     # invalid certs on test targets, so certificate verification is

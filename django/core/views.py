@@ -1,3 +1,4 @@
+import hmac
 import json
 
 from django.conf import settings
@@ -301,7 +302,7 @@ def api_custom_headers(request):
     ingest endpoint) so it can inject the active project's proxy-scoped
     custom headers into every request it forwards."""
     token = request.headers.get("X-Ingest-Token", "")
-    if not settings.INGEST_TOKEN or token != settings.INGEST_TOKEN:
+    if not settings.INGEST_TOKEN or not hmac.compare_digest(token, settings.INGEST_TOKEN):
         return JsonResponse({"error": "unauthorized"}, status=401)
 
     project = Project.get_active()

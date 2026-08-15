@@ -58,7 +58,12 @@ def maybe_extract_endpoints(flow):
     for candidate in extract_paths(flow.response_body):
         if candidate.startswith(("http://", "https://")):
             parsed = urlparse(candidate)
-            host, path = parsed.netloc, (parsed.path or "/")
+            # .hostname, not .netloc — Flow.host (mitmproxy's pretty_host) is
+            # always bare, no port/userinfo. Site Map keys its tree by exact
+            # host string, so a mismatch here would fragment a host with an
+            # explicit port (e.g. "api.example.com:8443") into a separate,
+            # disconnected node instead of merging into the real one.
+            host, path = (parsed.hostname or ""), (parsed.path or "/")
         else:
             host, path = flow.host, candidate
 

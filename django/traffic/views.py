@@ -1,3 +1,4 @@
+import hmac
 import json
 from collections import defaultdict
 from urllib.parse import urlencode, urlparse
@@ -37,7 +38,7 @@ def ingest_flow(request):
     core.middleware.LoginRequiredMiddleware's EXEMPT_PREFIXES.
     """
     token = request.headers.get("X-Ingest-Token", "")
-    if not settings.INGEST_TOKEN or token != settings.INGEST_TOKEN:
+    if not settings.INGEST_TOKEN or not hmac.compare_digest(token, settings.INGEST_TOKEN):
         return JsonResponse({"error": "unauthorized"}, status=401)
 
     try:

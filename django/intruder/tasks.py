@@ -4,18 +4,11 @@ from celery import shared_task
 from django.utils import timezone
 
 from core.scope import OutOfScopeError, is_in_scope
-from core.senders import send_request
+from core.senders import send_request, strip_nul as _strip_nul
 from repeater.headers_text import headers_to_text, text_to_headers
 
 from .markers import count_points, strip_markers, substitute_point
 from .models import IntruderAttack, IntruderResult
-
-
-def _strip_nul(value):
-    """Postgres text columns reject a raw NUL byte outright — strip it
-    rather than let a save() blow up on a response body that happens to
-    contain one (rare, but real servers can send it)."""
-    return value.replace("\x00", "") if isinstance(value, str) else value
 
 
 def _render(attack, headers_text, point_index, payload, url_count, headers_count):
@@ -92,12 +85,14 @@ def run_intruder_attack(attack_id):
                 # A point substituted into the host itself pushed this
                 # request out of scope — skip it, keep the rest of the sweep.
                 IntruderResult.objects.create(
-                    attack=attack, payload=payload, request_url=url, request_headers=headers, request_body=body,
+                    attack=attack, payload=_strip_nul(payload), request_url=_strip_nul(url),
+                    request_headers=headers, request_body=_strip_nul(body),
                     error="SKIPPED: out of scope",
                 )
             except Exception as exc:  # noqa: BLE001 — record and keep sweeping
                 IntruderResult.objects.create(
-                    attack=attack, payload=payload, request_url=url, request_headers=headers, request_body=body,
+                    attack=attack, payload=_strip_nul(payload), request_url=_strip_nul(url),
+                    request_headers=headers, request_body=_strip_nul(body),
                     error=f"ERROR: {exc}",
                 )
 

@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from core.models import Project
 from core.scope import OutOfScopeError
-from core.senders import recalculate_content_length, send_request
+from core.senders import recalculate_content_length, send_request, strip_nul
 from traffic.models import Flow
 
 from .headers_text import headers_to_text, text_to_headers
@@ -81,7 +81,7 @@ def detail(request, pk):
             response = send_request(project, entry.method, entry.url, headers=entry.headers, body=entry.body)
             entry.response_status = response.status_code
             entry.response_headers = dict(response.headers)
-            entry.response_body = response.text
+            entry.response_body = strip_nul(response.text)
             entry.error = ""
         except OutOfScopeError as exc:
             entry.error = str(exc)

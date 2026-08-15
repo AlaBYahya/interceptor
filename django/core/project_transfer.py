@@ -206,7 +206,7 @@ def import_project(data):
         name=_unique_name(project_data.get("name", "Imported project")),
         description=project_data.get("description", ""),
         rules=project_data.get("rules", ""),
-        capture_mode=project_data.get("capture_mode", Project.CAPTURE_ALL),
+        capture_mode=project_data.get("capture_mode", Project.CAPTURE_IN_SCOPE_ONLY),
     )
 
     for e in data.get("scope_entries", []):

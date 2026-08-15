@@ -151,7 +151,7 @@ def run_crawl(job_id):
             limiter.wait()
 
             try:
-                response = send_request(job.project, "GET", url, headers=request_headers)
+                response = send_request(job.project, "GET", url, headers=request_headers, throttle=False)
             except Exception:  # noqa: BLE001 — one bad page shouldn't stop the crawl
                 continue
 

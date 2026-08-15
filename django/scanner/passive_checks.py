@@ -161,9 +161,19 @@ def check_leaked_secrets(flow):
 # from a host, so scanner/tasks.py dedupes these per (project, host, title)
 # instead of creating one Finding per flow. Per-request checks describe
 # something specific to that exact request/response (a reflected value, a
-# secret in this body) and stay one-per-flow.
-STRUCTURAL_CHECKS = (check_missing_security_headers, check_mixed_content)
-PER_REQUEST_CHECKS = (check_reflected_params, check_verbose_errors, check_interesting_parameters, check_leaked_secrets)
+# secret in this body) and stay one-per-flow. Mixed content belongs here, not
+# structural: it depends on what a specific page's body happens to reference,
+# not a host-wide constant — a title-only dedup key would silently drop every
+# occurrence past the first page found per host (verified: two pages with
+# different http:// resources on the same host produced only one Finding).
+STRUCTURAL_CHECKS = (check_missing_security_headers,)
+PER_REQUEST_CHECKS = (
+    check_reflected_params,
+    check_verbose_errors,
+    check_mixed_content,
+    check_interesting_parameters,
+    check_leaked_secrets,
+)
 CHECKS = STRUCTURAL_CHECKS + PER_REQUEST_CHECKS
 
 
