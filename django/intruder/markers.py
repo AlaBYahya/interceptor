@@ -6,7 +6,7 @@ substituted.
 """
 
 import re
-from urllib.parse import parse_qsl, urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse
 
 MARKER_RE = re.compile(r"§(.*?)§")
 
@@ -37,10 +37,23 @@ def substitute_point(template: str, index: int, payload: str) -> str:
 
 
 def _mark_query(query: str) -> str:
-    pairs = parse_qsl(query, keep_blank_values=True)
-    if not pairs:
+    """Wrap each parameter's value in §markers§, operating on the raw query
+    string rather than parse_qsl's decoded form — parse_qsl unescapes
+    percent-encoding (and "+") with no way to re-encode symmetrically when
+    rebuilding, which silently corrupted every *other* (non-fuzzed)
+    parameter for the whole attack: a redirect=https%3A%2F%2F... became a
+    literal, structurally-different https://... in the "restored" URL, and
+    a bare flag param like "?foo" grew a spurious "=" it never had."""
+    if not query:
         return query
-    return "&".join(f"{k}=§{v}§" for k, v in pairs)
+    marked = []
+    for pair in query.split("&"):
+        if "=" in pair:
+            key, value = pair.split("=", 1)
+            marked.append(f"{key}=§{value}§")
+        else:
+            marked.append(f"§{pair}§")
+    return "&".join(marked)
 
 
 def auto_mark_url(url: str) -> str:
